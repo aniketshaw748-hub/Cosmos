@@ -1,5 +1,5 @@
 /** What kind of object the user can select in the scene. */
-export type BodyKind = 'star' | 'planet' | 'asteroid';
+export type BodyKind = 'star' | 'planet' | 'asteroid' | 'moon';
 
 /** A single labelled fact shown in the info panel. */
 export interface Stat {
@@ -63,8 +63,33 @@ export interface SceneObject {
   suggestedQuestions: string[];
   /** structured data handed to the AI tutor as context */
   aiContext: Record<string, unknown>;
+  /** id of the parent planet, for moons */
+  parentId?: string;
   /** world-space fallback position when the object isn't in the live registry */
   position?: [number, number, number];
+}
+
+/** A moon of a planet (Feature 4). */
+export interface MoonData {
+  id: string;
+  name: string;
+  parentId: string;
+  parentName: string;
+  /** display radius, scene units */
+  displayRadius: number;
+  /** orbit radius from the parent's centre, scene units */
+  orbitRadius: number;
+  /** real orbital period in days — drives relative orbital speed */
+  periodDays: number;
+  /** true for retrograde orbits (Triton) */
+  retrograde?: boolean;
+  /** starting orbital phase, radians */
+  phase: number;
+  /** surface tint */
+  color: string;
+  surface: 'rocky' | 'icy' | 'haze';
+  diameterKm: number;
+  blurb: string;
 }
 
 /** NASA Astronomy Picture of the Day (normalised by /api/apod). */

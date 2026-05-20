@@ -1,4 +1,4 @@
-import type { BodyDef, NeoData, SceneObject, Stat } from '../types';
+import type { BodyDef, MoonData, NeoData, SceneObject, Stat } from '../types';
 
 /** Converts a hardcoded body definition into a selectable SceneObject. */
 export function bodyToSceneObject(body: BodyDef): SceneObject {
@@ -51,6 +51,47 @@ export function neoToSceneObject(
       description: 'A real asteroid from NASA’s near-Earth object feed.',
       ...Object.fromEntries(stats.map((s) => [s.label, s.value])),
     },
+    position,
+  };
+}
+
+/** Converts a moon into a selectable SceneObject. */
+export function moonToSceneObject(
+  moon: MoonData,
+  position: [number, number, number],
+): SceneObject {
+  const period =
+    moon.periodDays < 1
+      ? `${(moon.periodDays * 24).toFixed(1)} hours`
+      : `${moon.periodDays.toFixed(1)} days`;
+  const surface =
+    moon.surface === 'haze' ? 'Hazy atmosphere' : moon.surface === 'icy' ? 'Icy' : 'Rocky';
+  const stats: Stat[] = [
+    { label: 'Diameter', value: `${moon.diameterKm.toLocaleString()} km` },
+    { label: 'Orbital period', value: `${moon.retrograde ? 'retrograde ' : ''}${period}` },
+    { label: 'Parent planet', value: moon.parentName },
+    { label: 'Surface', value: surface },
+  ];
+
+  return {
+    id: `moon-${moon.id}`,
+    name: moon.name,
+    kind: 'moon',
+    radius: moon.displayRadius,
+    blurb: moon.blurb,
+    stats,
+    suggestedQuestions: [
+      `What makes ${moon.name} special?`,
+      `Could there be life on ${moon.name}?`,
+      `How did ${moon.name} form?`,
+    ],
+    aiContext: {
+      name: moon.name,
+      type: `moon of ${moon.parentName}`,
+      description: moon.blurb,
+      ...Object.fromEntries(stats.map((s) => [s.label, s.value])),
+    },
+    parentId: moon.parentId,
     position,
   };
 }

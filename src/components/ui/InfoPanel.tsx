@@ -9,6 +9,7 @@ const ACCENT: Record<SceneObject['kind'], string> = {
   star: '#ffb74d',
   planet: '#5b8cff',
   asteroid: '#9aa7bd',
+  moon: '#bcccdc',
 };
 
 /**

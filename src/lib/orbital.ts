@@ -6,6 +6,9 @@ export const ORBIT_SPEED_SCALE = 0.12;
 /** Global multiplier for self-rotation speed (spin speeds are real-relative). */
 export const SPIN_SCALE = 0.3;
 
+/** Converts a moon's inverse orbital period (1/days) into radians/second. */
+export const MOON_SPEED_SCALE = 1.2;
+
 /** Largest per-frame delta we trust — guards against tab-refocus time jumps. */
 export const MAX_DELTA = 0.1;
 
