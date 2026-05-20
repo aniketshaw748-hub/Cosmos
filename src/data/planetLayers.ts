@@ -39,9 +39,9 @@ export const PLANET_LAYERS: Record<string, LayerSet> = {
     estimated: false,
     layers: [
       { name: 'Crust', description: 'Thin continental + oceanic shell.', color: '#3f7d52', outer: 1.0 },
-      { name: 'Upper Mantle', description: 'Partly soft rock that drives plate tectonics.', color: '#c1701f', outer: 0.985 },
-      { name: 'Lower Mantle', description: 'Hot, slow-flowing solid rock — the bulk of Earth.', color: '#8f4a17', outer: 0.85 },
-      { name: 'Liquid Outer Core', description: 'Swirling iron-nickel that generates our magnetic field.', color: '#ff5a2a', outer: 0.545 },
+      { name: 'Upper Mantle', description: 'Partly soft rock that drives plate tectonics.', color: '#c1701f', outer: 0.95 },
+      { name: 'Lower Mantle', description: 'Hot, slow-flowing solid rock — the bulk of Earth.', color: '#8f4a17', outer: 0.78 },
+      { name: 'Liquid Outer Core', description: 'Swirling iron-nickel that generates our magnetic field.', color: '#ff5a2a', outer: 0.55 },
       { name: 'Solid Inner Core', description: 'A solid iron-nickel ball as hot as the Sun’s surface.', color: '#ffe14d', outer: 0.19 },
     ],
   },

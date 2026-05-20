@@ -9,6 +9,7 @@ import { AXIAL_TILTS } from '../../data/axialTilts';
 import { SUN_LAYERS } from '../../data/planetLayers';
 import { RotationAxis } from './RotationAxis';
 import { DissectedBody } from './DissectedBody';
+import { useDissectionVisible } from '../../hooks/useDissectionVisible';
 import { useSceneStore } from '../../store/useSceneStore';
 import { bodyToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
@@ -16,6 +17,7 @@ import { registerObject, unregisterObject } from '../../lib/registry';
 /** The Sun: a self-lit textured sphere, the scene's main light, selectable
  *  and dissectable. */
 export function Sun() {
+  const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const texture = useTexture(SUN.textureUrl!);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -26,9 +28,10 @@ export function Sun() {
   const isSelected = useSceneStore((s) => s.selected?.id === SUN.id);
   const dissectMode = useSceneStore((s) => s.dissectMode);
   const dissecting = isSelected && dissectMode;
+  const showDissection = useDissectionVisible(dissecting);
 
   useEffect(() => {
-    if (meshRef.current) registerObject(SUN.id, meshRef.current);
+    if (groupRef.current) registerObject(SUN.id, groupRef.current);
     return () => unregisterObject(SUN.id);
   }, []);
 
@@ -39,9 +42,14 @@ export function Sun() {
   });
 
   return (
-    <group>
-      {dissecting ? (
-        <DissectedBody layers={SUN_LAYERS} radius={SUN.radius} />
+    <group ref={groupRef}>
+      {showDissection ? (
+        <DissectedBody
+          open={dissecting}
+          layers={SUN_LAYERS}
+          radius={SUN.radius}
+          surface={{ textureUrl: SUN.textureUrl, color: '#ffcc55', emissive: true }}
+        />
       ) : (
         <>
           <mesh

@@ -34,6 +34,8 @@ export interface BodyDef {
   spinSpeed: number;
   /** axial tilt in radians */
   tilt: number;
+  /** orbital-plane tilt for this body's moons, radians (defaults to axial tilt) */
+  moonInclination?: number;
   /** starting orbital phase in radians */
   phase: number;
   /** fallback colour if a texture fails to load */

@@ -9,6 +9,7 @@ import { useSceneStore } from '../../store/useSceneStore';
 import { moonToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
 import { moonLayers } from '../../data/planetLayers';
+import { useDissectionVisible } from '../../hooks/useDissectionVisible';
 import { DissectedBody } from './DissectedBody';
 
 /** A single clickable, dissectable moon orbiting its parent planet (Feature 4). */
@@ -30,6 +31,7 @@ export function Moon({ data }: { data: MoonData }) {
   // Focusing any object freezes the whole system's revolution.
   const anySelected = useSceneStore((s) => s.selected !== null);
   const dissecting = isSelected && dissectMode;
+  const showDissection = useDissectionVisible(dissecting);
   const active = isHovered || isSelected;
 
   useEffect(() => {
@@ -66,8 +68,17 @@ export function Moon({ data }: { data: MoonData }) {
 
   return (
     <group ref={orbitRef}>
-      {dissecting ? (
-        <DissectedBody layers={moonLayers(data)} radius={data.displayRadius} />
+      {showDissection ? (
+        <DissectedBody
+          open={dissecting}
+          layers={moonLayers(data)}
+          radius={data.displayRadius}
+          surface={
+            data.surface === 'haze'
+              ? { color: data.color }
+              : { textureUrl: '/textures/moon.jpg', color: data.color, tint: data.color }
+          }
+        />
       ) : (
         <>
           {active && (

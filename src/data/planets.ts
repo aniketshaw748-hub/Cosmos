@@ -101,6 +101,7 @@ export const PLANETS: BodyDef[] = [
     orbitSpeed: 1,
     spinSpeed: 1.0,
     tilt: deg(AXIAL_TILTS.earth),
+    moonInclination: deg(5),
     phase: 4,
     color: '#3a6fd8',
     textureUrl: '/textures/earth_day.jpg',

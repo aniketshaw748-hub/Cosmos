@@ -9,6 +9,7 @@ import { useSceneStore } from '../../store/useSceneStore';
 import { bodyToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
 import { PLANET_LAYERS } from '../../data/planetLayers';
+import { useDissectionVisible } from '../../hooks/useDissectionVisible';
 import { PlanetRings } from './PlanetRings';
 import { RotationAxis } from './RotationAxis';
 import { DissectedBody } from './DissectedBody';
@@ -30,9 +31,13 @@ export function Planet({ data }: { data: BodyDef }) {
   // Focusing any object freezes the whole system's revolution.
   const anySelected = useSceneStore((s) => s.selected !== null);
   const dissecting = isSelected && dissectMode;
+  const showDissection = useDissectionVisible(dissecting);
   const active = isHovered || isSelected;
 
-  // Register the orbit node so the camera rig can follow this planet live.
+  // Moons orbit in the planet's equatorial plane (its axial tilt), except
+  // Earth's Moon which sits near the ecliptic.
+  const moonTilt = data.moonInclination ?? data.tilt;
+
   useEffect(() => {
     if (orbitRef.current) registerObject(data.id, orbitRef.current);
     return () => unregisterObject(data.id);
@@ -40,11 +45,9 @@ export function Planet({ data }: { data: BodyDef }) {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, MAX_DELTA);
-    // Orbit freezes for the whole system whenever anything is focused.
     if (!paused && !anySelected) {
       angle.current += data.orbitSpeed * ORBIT_SPEED_SCALE * dt;
     }
-    // Axial spin continues even while focused — only a global pause stops it.
     if (!paused && spinRef.current) {
       spinRef.current.rotation.y += data.spinSpeed * SPIN_SCALE * dt;
     }
@@ -71,12 +74,17 @@ export function Planet({ data }: { data: BodyDef }) {
 
   return (
     <group ref={orbitRef}>
-      {active && !dissecting && (
+      {active && !showDissection && (
         <GlowShell radius={data.radius} color={data.color} strong={isSelected} />
       )}
 
-      {dissecting ? (
-        <DissectedBody layers={PLANET_LAYERS[data.id]} radius={data.radius} />
+      {showDissection ? (
+        <DissectedBody
+          open={dissecting}
+          layers={PLANET_LAYERS[data.id]}
+          radius={data.radius}
+          surface={{ textureUrl: data.textureUrl, color: data.color }}
+        />
       ) : (
         <group rotation={[0, 0, data.tilt]}>
           <group ref={spinRef}>
@@ -99,8 +107,12 @@ export function Planet({ data }: { data: BodyDef }) {
         </group>
       )}
 
-      {/* Moons orbit the planet (Feature 4). */}
-      {!dissecting && <MoonSystem planetId={data.id} />}
+      {/* Moons orbit in the planet's tilted equatorial plane (Feature 4). */}
+      {!showDissection && (
+        <group rotation={[0, 0, moonTilt]}>
+          <MoonSystem planetId={data.id} />
+        </group>
+      )}
     </group>
   );
 }

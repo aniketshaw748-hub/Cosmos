@@ -10,6 +10,7 @@ import { registerObject, unregisterObject } from '../../lib/registry';
 import { MAX_DELTA, ORBIT_SPEED_SCALE } from '../../lib/orbital';
 import { ASTEROID_LAYERS } from '../../data/planetLayers';
 import { DissectedBody } from './DissectedBody';
+import { useDissectionVisible } from '../../hooks/useDissectionVisible';
 
 const BELT_COUNT = 2200;
 const BELT_INNER = 50;
@@ -147,6 +148,7 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
   const anySelected = useSceneStore((s) => s.selected !== null);
   const dissectMode = useSceneStore((s) => s.dissectMode);
   const dissecting = isSelected && dissectMode;
+  const showDissection = useDissectionVisible(dissecting);
   const active = isHovered || isSelected;
 
   const size = useMemo(() => {
@@ -195,8 +197,13 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
 
   return (
     <group ref={orbitRef}>
-      {dissecting ? (
-        <DissectedBody layers={ASTEROID_LAYERS} radius={size} />
+      {showDissection ? (
+        <DissectedBody
+          open={dissecting}
+          layers={ASTEROID_LAYERS}
+          radius={size}
+          surface={{ color }}
+        />
       ) : (
         <>
           {active && (
