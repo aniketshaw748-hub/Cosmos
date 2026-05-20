@@ -40,10 +40,16 @@ Vite does not natively run Vercel `/api` functions. `vite-api-plugin.ts` adapts 
 so `npm run dev` serves `/api/apod`, `/api/neo`, and `/api/chat` locally. The same
 files run natively on Vercel in production.
 
+## v2 features (shipped)
+
+Click-to-focus layout, visible rotation axes, planet dissection, 20 moons,
+upgraded Earth textures + HD toggle, a NASA image gallery, a 4.6-billion-year
+timeline scrubber, a procedural background universe, and a "beyond the solar
+system" toast.
+
 ## Out of scope (do not build)
 
-Auth / accounts, a database, server-side rendering, a galaxy beyond the solar
-system, mobile-optimized 3D.
+Auth / accounts, a database, server-side rendering, mobile-optimized 3D.
 
 ## Deviations from the original spec
 
