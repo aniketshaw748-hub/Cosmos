@@ -8,6 +8,8 @@ import { useSceneStore } from '../../store/useSceneStore';
 import { neoToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
 import { MAX_DELTA, ORBIT_SPEED_SCALE } from '../../lib/orbital';
+import { ASTEROID_LAYERS } from '../../data/planetLayers';
+import { DissectedBody } from './DissectedBody';
 
 const BELT_COUNT = 2200;
 const BELT_INNER = 50;
@@ -141,6 +143,8 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
   const id = `neo-${neo.id}`;
   const isHovered = useSceneStore((s) => s.hovered?.id === id);
   const isSelected = useSceneStore((s) => s.selected?.id === id);
+  const dissectMode = useSceneStore((s) => s.dissectMode);
+  const dissecting = isSelected && dissectMode;
   const active = isHovered || isSelected;
 
   const size = useMemo(() => {
@@ -189,43 +193,49 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
 
   return (
     <group ref={orbitRef}>
-      {active && (
-        <mesh scale={size * 2.2} raycast={() => null}>
-          <sphereGeometry args={[1, 24, 24]} />
-          <meshBasicMaterial
-            color={color}
-            transparent
-            opacity={isSelected ? 0.3 : 0.16}
-            side={THREE.BackSide}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
+      {dissecting ? (
+        <DissectedBody layers={ASTEROID_LAYERS} radius={size} />
+      ) : (
+        <>
+          {active && (
+            <mesh scale={size * 2.2} raycast={() => null}>
+              <sphereGeometry args={[1, 24, 24]} />
+              <meshBasicMaterial
+                color={color}
+                transparent
+                opacity={isSelected ? 0.3 : 0.16}
+                side={THREE.BackSide}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+          )}
+          <mesh
+            ref={meshRef}
+            onClick={handleClick}
+            onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+              e.stopPropagation();
+              setHovered({ id, name: neo.name });
+              document.body.style.cursor = 'pointer';
+            }}
+            onPointerOut={() => {
+              setHovered(null);
+              document.body.style.cursor = 'auto';
+            }}
+          >
+            <icosahedronGeometry args={[size, 0]} />
+            <meshStandardMaterial
+              ref={matRef}
+              color={color}
+              emissive={color}
+              emissiveIntensity={0.16}
+              roughness={0.95}
+              metalness={0.05}
+              flatShading
+            />
+          </mesh>
+        </>
       )}
-      <mesh
-        ref={meshRef}
-        onClick={handleClick}
-        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
-          setHovered({ id, name: neo.name });
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={() => {
-          setHovered(null);
-          document.body.style.cursor = 'auto';
-        }}
-      >
-        <icosahedronGeometry args={[size, 0]} />
-        <meshStandardMaterial
-          ref={matRef}
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.16}
-          roughness={0.95}
-          metalness={0.05}
-          flatShading
-        />
-      </mesh>
     </group>
   );
 }

@@ -8,8 +8,10 @@ import { MAX_DELTA, MOON_SPEED_SCALE } from '../../lib/orbital';
 import { useSceneStore } from '../../store/useSceneStore';
 import { moonToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
+import { moonLayers } from '../../data/planetLayers';
+import { DissectedBody } from './DissectedBody';
 
-/** A single clickable moon orbiting its parent planet (Feature 4). */
+/** A single clickable, dissectable moon orbiting its parent planet (Feature 4). */
 export function Moon({ data }: { data: MoonData }) {
   const orbitRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -24,8 +26,9 @@ export function Moon({ data }: { data: MoonData }) {
   const paused = useSceneStore((s) => s.paused);
   const isHovered = useSceneStore((s) => s.hovered?.id === sceneId);
   const isSelected = useSceneStore((s) => s.selected?.id === sceneId);
-  // Moons stop orbiting when this moon — or its parent planet — is focused.
   const parentSelected = useSceneStore((s) => s.selected?.id === data.parentId);
+  const dissectMode = useSceneStore((s) => s.dissectMode);
+  const dissecting = isSelected && dissectMode;
   const frozen = paused || isSelected || parentSelected;
   const active = isHovered || isSelected;
 
@@ -62,50 +65,56 @@ export function Moon({ data }: { data: MoonData }) {
 
   return (
     <group ref={orbitRef}>
-      {active && (
-        <mesh scale={1.55} raycast={() => null}>
-          <sphereGeometry args={[data.displayRadius, 20, 20]} />
-          <meshBasicMaterial
-            color="#cdd8ff"
-            transparent
-            opacity={isSelected ? 0.3 : 0.16}
-            side={THREE.BackSide}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
+      {dissecting ? (
+        <DissectedBody layers={moonLayers(data)} radius={data.displayRadius} />
+      ) : (
+        <>
+          {active && (
+            <mesh scale={1.55} raycast={() => null}>
+              <sphereGeometry args={[data.displayRadius, 20, 20]} />
+              <meshBasicMaterial
+                color="#cdd8ff"
+                transparent
+                opacity={isSelected ? 0.3 : 0.16}
+                side={THREE.BackSide}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+          )}
+          <mesh
+            ref={meshRef}
+            onClick={handleClick}
+            onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+              e.stopPropagation();
+              setHovered({ id: sceneId, name: data.name });
+              document.body.style.cursor = 'pointer';
+            }}
+            onPointerOut={() => {
+              setHovered(null);
+              document.body.style.cursor = 'auto';
+            }}
+          >
+            <sphereGeometry args={[data.displayRadius, 32, 32]} />
+            {data.surface === 'haze' ? (
+              <meshStandardMaterial
+                color={data.color}
+                emissive={data.color}
+                emissiveIntensity={0.16}
+                roughness={0.85}
+                metalness={0}
+              />
+            ) : (
+              <meshStandardMaterial
+                map={texture}
+                color={data.color}
+                roughness={data.surface === 'icy' ? 0.55 : 0.95}
+                metalness={0.04}
+              />
+            )}
+          </mesh>
+        </>
       )}
-      <mesh
-        ref={meshRef}
-        onClick={handleClick}
-        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
-          setHovered({ id: sceneId, name: data.name });
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={() => {
-          setHovered(null);
-          document.body.style.cursor = 'auto';
-        }}
-      >
-        <sphereGeometry args={[data.displayRadius, 32, 32]} />
-        {data.surface === 'haze' ? (
-          <meshStandardMaterial
-            color={data.color}
-            emissive={data.color}
-            emissiveIntensity={0.16}
-            roughness={0.85}
-            metalness={0}
-          />
-        ) : (
-          <meshStandardMaterial
-            map={texture}
-            color={data.color}
-            roughness={data.surface === 'icy' ? 0.55 : 0.95}
-            metalness={0.04}
-          />
-        )}
-      </mesh>
     </group>
   );
 }

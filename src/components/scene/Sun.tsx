@@ -6,12 +6,15 @@ import * as THREE from 'three';
 import { SUN } from '../../data/planets';
 import { MAX_DELTA, deg } from '../../lib/orbital';
 import { AXIAL_TILTS } from '../../data/axialTilts';
+import { SUN_LAYERS } from '../../data/planetLayers';
 import { RotationAxis } from './RotationAxis';
+import { DissectedBody } from './DissectedBody';
 import { useSceneStore } from '../../store/useSceneStore';
 import { bodyToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
 
-/** The Sun: a self-lit textured sphere, the scene's main light, and selectable. */
+/** The Sun: a self-lit textured sphere, the scene's main light, selectable
+ *  and dissectable. */
 export function Sun() {
   const meshRef = useRef<THREE.Mesh>(null);
   const texture = useTexture(SUN.textureUrl!);
@@ -21,6 +24,8 @@ export function Sun() {
   const setHovered = useSceneStore((s) => s.setHovered);
   const paused = useSceneStore((s) => s.paused);
   const isSelected = useSceneStore((s) => s.selected?.id === SUN.id);
+  const dissectMode = useSceneStore((s) => s.dissectMode);
+  const dissecting = isSelected && dissectMode;
 
   useEffect(() => {
     if (meshRef.current) registerObject(SUN.id, meshRef.current);
@@ -35,51 +40,57 @@ export function Sun() {
 
   return (
     <group>
-      <mesh
-        ref={meshRef}
-        onClick={(e: ThreeEvent<MouseEvent>) => {
-          e.stopPropagation();
-          select(bodyToSceneObject(SUN));
-        }}
-        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
-          setHovered({ id: SUN.id, name: SUN.name });
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={() => {
-          setHovered(null);
-          document.body.style.cursor = 'auto';
-        }}
-      >
-        <sphereGeometry args={[SUN.radius, 64, 64]} />
-        {/* Emissive map keeps the Sun bright above 1.0 so the bloom pass catches it. */}
-        <meshStandardMaterial
-          emissiveMap={texture}
-          emissive="#ffffff"
-          emissiveIntensity={2.2}
-          color="#000000"
-          toneMapped={false}
-        />
-      </mesh>
+      {dissecting ? (
+        <DissectedBody layers={SUN_LAYERS} radius={SUN.radius} />
+      ) : (
+        <>
+          <mesh
+            ref={meshRef}
+            onClick={(e: ThreeEvent<MouseEvent>) => {
+              e.stopPropagation();
+              select(bodyToSceneObject(SUN));
+            }}
+            onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+              e.stopPropagation();
+              setHovered({ id: SUN.id, name: SUN.name });
+              document.body.style.cursor = 'pointer';
+            }}
+            onPointerOut={() => {
+              setHovered(null);
+              document.body.style.cursor = 'auto';
+            }}
+          >
+            <sphereGeometry args={[SUN.radius, 64, 64]} />
+            {/* Emissive map keeps the Sun bright above 1.0 so the bloom pass catches it. */}
+            <meshStandardMaterial
+              emissiveMap={texture}
+              emissive="#ffffff"
+              emissiveIntensity={2.2}
+              color="#000000"
+              toneMapped={false}
+            />
+          </mesh>
 
-      {/* Soft corona halo. */}
-      <mesh scale={1.22} raycast={() => null}>
-        <sphereGeometry args={[SUN.radius, 32, 32]} />
-        <meshBasicMaterial
-          color="#ff9d2f"
-          transparent
-          opacity={0.16}
-          side={THREE.BackSide}
-          toneMapped={false}
-          depthWrite={false}
-        />
-      </mesh>
+          {/* Soft corona halo. */}
+          <mesh scale={1.22} raycast={() => null}>
+            <sphereGeometry args={[SUN.radius, 32, 32]} />
+            <meshBasicMaterial
+              color="#ff9d2f"
+              transparent
+              opacity={0.16}
+              side={THREE.BackSide}
+              toneMapped={false}
+              depthWrite={false}
+            />
+          </mesh>
 
-      {/* Feature 2 — axial tilt shown when the Sun is focused. */}
-      {isSelected && (
-        <group rotation={[0, 0, deg(AXIAL_TILTS.sun)]}>
-          <RotationAxis radius={SUN.radius} />
-        </group>
+          {/* Feature 2 — axial tilt shown when the Sun is focused. */}
+          {isSelected && (
+            <group rotation={[0, 0, deg(AXIAL_TILTS.sun)]}>
+              <RotationAxis radius={SUN.radius} />
+            </group>
+          )}
+        </>
       )}
 
       {/* Main light. decay 0 so even Neptune is lit in this stylised scene. */}

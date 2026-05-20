@@ -8,9 +8,10 @@ import { MAX_DELTA, ORBIT_SPEED_SCALE, SPIN_SCALE } from '../../lib/orbital';
 import { useSceneStore } from '../../store/useSceneStore';
 import { bodyToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
+import { PLANET_LAYERS } from '../../data/planetLayers';
 import { PlanetRings } from './PlanetRings';
 import { RotationAxis } from './RotationAxis';
-import { DissectedPlanet } from './DissectedPlanet';
+import { DissectedBody } from './DissectedBody';
 import { MoonSystem } from './MoonSystem';
 
 /** A textured planet that revolves around the Sun, spins on its tilted axis,
@@ -76,31 +77,29 @@ export function Planet({ data }: { data: BodyDef }) {
         <GlowShell radius={data.radius} color={data.color} strong={isSelected} />
       )}
 
-      <group rotation={[0, 0, data.tilt]}>
-        {dissecting ? (
-          <DissectedPlanet planetId={data.id} radius={data.radius} />
-        ) : (
-          <>
-            <group ref={spinRef}>
-              <mesh onClick={handleClick} onPointerOver={handleOver} onPointerOut={handleOut}>
-                <sphereGeometry args={[data.radius, 64, 64]} />
-                {data.textureUrl ? (
-                  data.nightUrl ? (
-                    <RichSurface dayUrl={data.textureUrl} nightUrl={data.nightUrl} />
-                  ) : (
-                    <TexturedSurface url={data.textureUrl} />
-                  )
+      {dissecting ? (
+        <DissectedBody layers={PLANET_LAYERS[data.id]} radius={data.radius} />
+      ) : (
+        <group rotation={[0, 0, data.tilt]}>
+          <group ref={spinRef}>
+            <mesh onClick={handleClick} onPointerOver={handleOver} onPointerOut={handleOut}>
+              <sphereGeometry args={[data.radius, 64, 64]} />
+              {data.textureUrl ? (
+                data.nightUrl ? (
+                  <RichSurface dayUrl={data.textureUrl} nightUrl={data.nightUrl} />
                 ) : (
-                  <meshStandardMaterial color={data.color} roughness={0.9} metalness={0.05} />
-                )}
-              </mesh>
-            </group>
-            {data.cloudUrl && <CloudLayer url={data.cloudUrl} radius={data.radius} />}
-            {data.rings && <PlanetRings rings={data.rings} />}
-            {isSelected && <RotationAxis radius={data.radius} />}
-          </>
-        )}
-      </group>
+                  <TexturedSurface url={data.textureUrl} />
+                )
+              ) : (
+                <meshStandardMaterial color={data.color} roughness={0.9} metalness={0.05} />
+              )}
+            </mesh>
+          </group>
+          {data.cloudUrl && <CloudLayer url={data.cloudUrl} radius={data.radius} />}
+          {data.rings && <PlanetRings rings={data.rings} />}
+          {isSelected && <RotationAxis radius={data.radius} />}
+        </group>
+      )}
 
       {/* Moons orbit the planet (Feature 4). */}
       {!dissecting && <MoonSystem planetId={data.id} />}

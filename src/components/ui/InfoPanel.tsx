@@ -3,6 +3,8 @@ import { useSceneStore } from '../../store/useSceneStore';
 import type { SceneObject } from '../../types';
 import { ChatBox } from './ChatBox';
 import { DissectButton } from './DissectButton';
+import { getMoonsByPlanet } from '../../data/moons';
+import { moonToSceneObject } from '../../lib/sceneObject';
 
 /** Accent colour per object kind. */
 const ACCENT: Record<SceneObject['kind'], string> = {
@@ -20,6 +22,7 @@ const ACCENT: Record<SceneObject['kind'], string> = {
 export function InfoPanel() {
   const selected = useSceneStore((s) => s.selected);
   const deselect = useSceneStore((s) => s.deselect);
+  const select = useSceneStore((s) => s.select);
   const setGalleryOpen = useSceneStore((s) => s.setGalleryOpen);
   const [shown, setShown] = useState<SceneObject | null>(selected);
 
@@ -29,6 +32,7 @@ export function InfoPanel() {
 
   const open = selected !== null;
   const accent = shown ? ACCENT[shown.kind] : ACCENT.planet;
+  const moons = shown?.kind === 'planet' ? getMoonsByPlanet(shown.id) : [];
 
   return (
     <aside
@@ -68,7 +72,7 @@ export function InfoPanel() {
 
           {/* Actions */}
           <div className="flex shrink-0 flex-wrap gap-2 px-6 pb-3">
-            {shown.kind === 'planet' && <DissectButton />}
+            <DissectButton />
             <button
               onClick={() => setGalleryOpen(true)}
               className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:border-white/30 hover:text-white"
@@ -93,6 +97,26 @@ export function InfoPanel() {
               ))}
             </dl>
           </div>
+
+          {/* Moons */}
+          {moons.length > 0 && (
+            <div className="shrink-0 border-b border-white/[0.06] px-6 py-3">
+              <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                Moons · {moons.length}
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {moons.map((moon) => (
+                  <button
+                    key={moon.id}
+                    onClick={() => select(moonToSceneObject(moon, [0, 0, 0]))}
+                    className="rounded-md border border-white/12 bg-white/[0.04] px-2 py-1 text-xs text-white/75 transition hover:border-white/30 hover:text-white"
+                  >
+                    {moon.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* AI tutor */}
           <ChatBox key={shown.id} object={shown} accent={accent} />
