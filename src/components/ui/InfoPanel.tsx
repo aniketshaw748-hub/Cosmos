@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSceneStore } from '../../store/useSceneStore';
 import type { SceneObject } from '../../types';
+import { ChatBox } from './ChatBox';
 
 /** Accent colour per object kind. */
 const ACCENT: Record<SceneObject['kind'], string> = {
@@ -10,9 +11,9 @@ const ACCENT: Record<SceneObject['kind'], string> = {
 };
 
 /**
- * Slide-in panel for the selected object. Stays mounted and translates off
- * screen when nothing is selected, retaining the last object so the slide-out
- * animation has content to show.
+ * Slide-in panel for the selected object: real-world stats plus the AI tutor.
+ * Stays mounted and translates off screen when nothing is selected, retaining
+ * the last object so the slide-out animation has content to show.
  */
 export function InfoPanel() {
   const selected = useSceneStore((s) => s.selected);
@@ -29,14 +30,14 @@ export function InfoPanel() {
   return (
     <aside
       aria-hidden={!open}
-      className={`pointer-events-auto absolute right-0 top-0 z-20 flex h-full w-[380px] max-w-[90vw] flex-col border-l border-white/10 bg-[#0a0d16]/85 shadow-2xl backdrop-blur-xl transition-transform duration-[420ms] ease-out ${
+      className={`pointer-events-auto absolute right-0 top-0 z-20 flex h-full w-[390px] max-w-[92vw] flex-col border-l border-white/10 bg-[#0a0d16]/90 shadow-2xl backdrop-blur-xl transition-transform duration-[420ms] ease-out ${
         open ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
       {shown && (
         <>
           {/* Header */}
-          <header className="relative shrink-0 px-6 pb-5 pt-6">
+          <header className="relative shrink-0 px-6 pb-4 pt-6">
             <div
               className="absolute inset-x-0 top-0 h-[3px]"
               style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
@@ -57,28 +58,30 @@ export function InfoPanel() {
             <h2 className="mt-1.5 text-3xl font-semibold tracking-tight text-white">
               {shown.name}
             </h2>
-            <p className="mt-2.5 max-w-[300px] text-sm leading-relaxed text-white/55">
+            <p className="mt-2 max-w-[310px] text-sm leading-relaxed text-white/55">
               {shown.blurb}
             </p>
           </header>
 
-          {/* Stats */}
-          <div className="flex-1 overflow-y-auto px-6 pb-8">
-            <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
+          {/* Quick facts */}
+          <div className="shrink-0 border-b border-white/[0.06] px-6 pb-4">
+            <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
               Quick facts
             </h3>
-            <dl className="divide-y divide-white/[0.06]">
+            <dl className="grid grid-cols-2 gap-x-5">
               {shown.stats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="flex items-baseline justify-between gap-4 py-2.5"
-                >
-                  <dt className="text-xs uppercase tracking-wider text-white/40">{stat.label}</dt>
-                  <dd className="text-right text-sm font-medium text-white/90">{stat.value}</dd>
+                <div key={stat.label} className="flex flex-col border-b border-white/[0.05] py-1.5">
+                  <dt className="text-[10px] uppercase tracking-wider text-white/35">
+                    {stat.label}
+                  </dt>
+                  <dd className="text-[13px] font-medium text-white/90">{stat.value}</dd>
                 </div>
               ))}
             </dl>
           </div>
+
+          {/* AI tutor */}
+          <ChatBox key={shown.id} object={shown} accent={accent} />
         </>
       )}
     </aside>

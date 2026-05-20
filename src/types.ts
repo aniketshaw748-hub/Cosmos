@@ -97,3 +97,9 @@ export interface NeoFeed {
   count: number;
   asteroids: NeoData[];
 }
+
+/** A single turn in an AI tutor conversation. */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
