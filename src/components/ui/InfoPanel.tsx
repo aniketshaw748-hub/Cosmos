@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSceneStore } from '../../store/useSceneStore';
 import type { SceneObject } from '../../types';
 import { ChatBox } from './ChatBox';
+import { DissectButton } from './DissectButton';
 
 /** Accent colour per object kind. */
 const ACCENT: Record<SceneObject['kind'], string> = {
@@ -62,6 +63,11 @@ export function InfoPanel() {
               {shown.blurb}
             </p>
           </header>
+
+          {/* Actions */}
+          <div className="flex shrink-0 flex-wrap gap-2 px-6 pb-3">
+            {shown.kind === 'planet' && <DissectButton />}
+          </div>
 
           {/* Quick facts */}
           <div className="shrink-0 border-b border-white/[0.06] px-6 pb-4">

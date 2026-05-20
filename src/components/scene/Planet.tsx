@@ -10,9 +10,11 @@ import { bodyToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
 import { PlanetRings } from './PlanetRings';
 import { RotationAxis } from './RotationAxis';
+import { DissectedPlanet } from './DissectedPlanet';
+import { MoonSystem } from './MoonSystem';
 
 /** A textured planet that revolves around the Sun, spins on its tilted axis,
- *  and can be clicked to inspect. */
+ *  and can be clicked to inspect, dissect, and explore its moons. */
 export function Planet({ data }: { data: BodyDef }) {
   const orbitRef = useRef<THREE.Group>(null);
   const spinRef = useRef<THREE.Group>(null);
@@ -23,6 +25,8 @@ export function Planet({ data }: { data: BodyDef }) {
   const paused = useSceneStore((s) => s.paused);
   const isHovered = useSceneStore((s) => s.hovered?.id === data.id);
   const isSelected = useSceneStore((s) => s.selected?.id === data.id);
+  const dissectMode = useSceneStore((s) => s.dissectMode);
+  const dissecting = isSelected && dissectMode;
   const active = isHovered || isSelected;
 
   // Register the orbit node so the camera rig can follow this planet live.
@@ -64,21 +68,33 @@ export function Planet({ data }: { data: BodyDef }) {
 
   return (
     <group ref={orbitRef}>
-      {active && <GlowShell radius={data.radius} color={data.color} strong={isSelected} />}
+      {active && !dissecting && (
+        <GlowShell radius={data.radius} color={data.color} strong={isSelected} />
+      )}
+
       <group rotation={[0, 0, data.tilt]}>
-        <group ref={spinRef}>
-          <mesh onClick={handleClick} onPointerOver={handleOver} onPointerOut={handleOut}>
-            <sphereGeometry args={[data.radius, 64, 64]} />
-            {data.textureUrl ? (
-              <TexturedSurface url={data.textureUrl} />
-            ) : (
-              <meshStandardMaterial color={data.color} roughness={0.9} metalness={0.05} />
-            )}
-          </mesh>
-        </group>
-        {data.rings && <PlanetRings rings={data.rings} />}
-        {isSelected && <RotationAxis radius={data.radius} />}
+        {dissecting ? (
+          <DissectedPlanet planetId={data.id} radius={data.radius} />
+        ) : (
+          <>
+            <group ref={spinRef}>
+              <mesh onClick={handleClick} onPointerOver={handleOver} onPointerOut={handleOut}>
+                <sphereGeometry args={[data.radius, 64, 64]} />
+                {data.textureUrl ? (
+                  <TexturedSurface url={data.textureUrl} />
+                ) : (
+                  <meshStandardMaterial color={data.color} roughness={0.9} metalness={0.05} />
+                )}
+              </mesh>
+            </group>
+            {data.rings && <PlanetRings rings={data.rings} />}
+            {isSelected && <RotationAxis radius={data.radius} />}
+          </>
+        )}
       </group>
+
+      {/* Moons orbit the planet (Feature 4) — paused while the planet is focused. */}
+      {!dissecting && <MoonSystem planetId={data.id} planetRadius={data.radius} frozen={isSelected} />}
     </group>
   );
 }
