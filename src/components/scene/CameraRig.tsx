@@ -13,17 +13,15 @@ type OrbitLike = {
 
 const ORIGIN = new THREE.Vector3(0, 0, 0);
 
-/** How far left of screen-centre the focused object sits (0 = centre, 1 = edge). */
-const FOCUS_OFFSET = 0.42;
-
 /**
- * Feature 1 — Click-to-Focus. On selection the camera eases in and frames the
- * (now frozen) object in the left part of the screen, leaving room for the
- * info panel on the right. The user keeps full orbit / pan / zoom control;
- * interacting cancels the auto-fly. Deselecting eases back to a free view.
+ * Feature 1 — Click-to-Focus. On selection the camera eases in to the object.
+ * The object itself is the OrbitControls anchor (so orbit / pan / zoom are
+ * intuitive), and a projection view-offset frames it in the left of the
+ * screen, leaving room for the info panel. Any manual interaction cancels the
+ * auto-fly; deselecting eases back to a free view.
  */
 export function CameraRig() {
-  const camera = useThree((s) => s.camera);
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const size = useThree((s) => s.size);
   const controls = useThree((s) => s.controls) as OrbitLike | null;
   const selected = useSceneStore((s) => s.selected);
@@ -59,22 +57,29 @@ export function CameraRig() {
         ? Math.max(selected.radius * 4, 8)
         : Math.max(selected.radius * 5, 7);
 
-      // Shift the look-at point right so the object renders on the left.
-      const vFov = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180;
-      const aspect = size.width / Math.max(size.height, 1);
-      const hHalf = Math.atan(Math.tan(vFov / 2) * aspect);
-      const shift = (dissectMode ? 0.5 : FOCUS_OFFSET) * distance * Math.tan(hHalf);
-      const right = new THREE.Vector3().crossVectors(camera.up, viewDir).normalize();
-
+      // The object itself is the orbit anchor.
+      desiredTarget.current.copy(focus);
       desiredCam.current
         .copy(focus)
         .addScaledVector(viewDir, distance)
         .addScaledVector(camera.up, selected.radius * 1.1);
-      desiredTarget.current.copy(focus).addScaledVector(right, shift);
+
+      // A projection offset frames the object in the left of the screen
+      // without moving the orbit anchor off the object.
+      const shiftFrac = dissectMode ? 0.26 : 0.18;
+      camera.setViewOffset(
+        size.width,
+        size.height,
+        shiftFrac * size.width,
+        0,
+        size.width,
+        size.height,
+      );
 
       flying.current = true;
       homing.current = false;
     } else {
+      camera.clearViewOffset();
       flying.current = false;
       homing.current = true;
     }
