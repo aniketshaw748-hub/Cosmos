@@ -4,6 +4,7 @@ import { DailyHero } from './components/ui/DailyHero';
 import { Loader } from './components/ui/Loader';
 import { Hud } from './components/ui/Hud';
 import { FocusVignette } from './components/ui/FocusVignette';
+import { NASAGallery } from './components/ui/NASAGallery';
 import { MobileNotice } from './components/ui/MobileNotice';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -16,6 +17,7 @@ export default function App() {
       <FocusVignette />
       <Hud />
       <InfoPanel />
+      <NASAGallery />
       <Loader />
       <DailyHero />
       <MobileNotice />

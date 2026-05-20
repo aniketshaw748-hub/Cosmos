@@ -20,6 +20,7 @@ const ACCENT: Record<SceneObject['kind'], string> = {
 export function InfoPanel() {
   const selected = useSceneStore((s) => s.selected);
   const deselect = useSceneStore((s) => s.deselect);
+  const setGalleryOpen = useSceneStore((s) => s.setGalleryOpen);
   const [shown, setShown] = useState<SceneObject | null>(selected);
 
   useEffect(() => {
@@ -68,6 +69,12 @@ export function InfoPanel() {
           {/* Actions */}
           <div className="flex shrink-0 flex-wrap gap-2 px-6 pb-3">
             {shown.kind === 'planet' && <DissectButton />}
+            <button
+              onClick={() => setGalleryOpen(true)}
+              className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:border-white/30 hover:text-white"
+            >
+              View NASA Photos
+            </button>
           </div>
 
           {/* Quick facts */}

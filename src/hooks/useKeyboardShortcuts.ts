@@ -9,6 +9,7 @@ import { useSceneStore } from '../store/useSceneStore';
 export function useKeyboardShortcuts(): void {
   const deselect = useSceneStore((s) => s.deselect);
   const togglePaused = useSceneStore((s) => s.togglePaused);
+  const galleryOpen = useSceneStore((s) => s.galleryOpen);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -16,7 +17,8 @@ export function useKeyboardShortcuts(): void {
       const typing = tag === 'input' || tag === 'textarea';
 
       if (e.key === 'Escape') {
-        deselect();
+        // While the gallery is open it owns Escape (closes lightbox / itself).
+        if (!galleryOpen) deselect();
       } else if (e.code === 'Space' && !typing) {
         e.preventDefault();
         togglePaused();
@@ -25,5 +27,5 @@ export function useKeyboardShortcuts(): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [deselect, togglePaused]);
+  }, [deselect, togglePaused, galleryOpen]);
 }
