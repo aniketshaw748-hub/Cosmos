@@ -5,7 +5,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { Sun } from './Sun';
 import { SolarSystem } from './SolarSystem';
 import { AsteroidBelt } from './AsteroidBelt';
-import { Starfield } from './Starfield';
+import { BackgroundUniverse } from './BackgroundUniverse';
 import { OrbitTrails } from './OrbitTrails';
 import { HoverLabel } from './HoverLabel';
 import { CameraRig } from './CameraRig';
@@ -34,8 +34,9 @@ export function Scene() {
       <color attach="background" args={['#05060a']} />
       <ambientLight intensity={0.14} />
 
+      <BackgroundUniverse />
+
       <Suspense fallback={null}>
-        <Starfield />
         {showRealSystem && (
           <>
             <Sun />
