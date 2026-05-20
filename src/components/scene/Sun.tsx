@@ -4,7 +4,9 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { SUN } from '../../data/planets';
-import { MAX_DELTA } from '../../lib/orbital';
+import { MAX_DELTA, deg } from '../../lib/orbital';
+import { AXIAL_TILTS } from '../../data/axialTilts';
+import { RotationAxis } from './RotationAxis';
 import { useSceneStore } from '../../store/useSceneStore';
 import { bodyToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
@@ -18,6 +20,7 @@ export function Sun() {
   const select = useSceneStore((s) => s.select);
   const setHovered = useSceneStore((s) => s.setHovered);
   const paused = useSceneStore((s) => s.paused);
+  const isSelected = useSceneStore((s) => s.selected?.id === SUN.id);
 
   useEffect(() => {
     if (meshRef.current) registerObject(SUN.id, meshRef.current);
@@ -71,6 +74,13 @@ export function Sun() {
           depthWrite={false}
         />
       </mesh>
+
+      {/* Feature 2 — axial tilt shown when the Sun is focused. */}
+      {isSelected && (
+        <group rotation={[0, 0, deg(AXIAL_TILTS.sun)]}>
+          <RotationAxis radius={SUN.radius} />
+        </group>
+      )}
 
       {/* Main light. decay 0 so even Neptune is lit in this stylised scene. */}
       <pointLight intensity={3} distance={0} decay={0} color="#fff6e0" />

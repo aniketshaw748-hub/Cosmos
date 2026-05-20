@@ -9,6 +9,7 @@ import { useSceneStore } from '../../store/useSceneStore';
 import { bodyToSceneObject } from '../../lib/sceneObject';
 import { registerObject, unregisterObject } from '../../lib/registry';
 import { PlanetRings } from './PlanetRings';
+import { RotationAxis } from './RotationAxis';
 
 /** A textured planet that revolves around the Sun, spins on its tilted axis,
  *  and can be clicked to inspect. */
@@ -76,6 +77,7 @@ export function Planet({ data }: { data: BodyDef }) {
           </mesh>
         </group>
         {data.rings && <PlanetRings rings={data.rings} />}
+        {isSelected && <RotationAxis radius={data.radius} />}
       </group>
     </group>
   );
