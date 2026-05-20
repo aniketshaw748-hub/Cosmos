@@ -6,56 +6,33 @@ import type { LayerSet } from '../../data/planetLayers';
 
 const bodyPos = new THREE.Vector3();
 
-/** Builds a hollow hemisphere shell (lathe profile) between two radii. */
-function makeShell(rInner: number, rOuter: number): THREE.LatheGeometry {
-  const points: THREE.Vector2[] = [];
-  const SEG = 24;
-  // inner arc: equator -> pole
-  for (let i = 0; i <= SEG; i++) {
-    const a = (i / SEG) * (Math.PI / 2);
-    points.push(new THREE.Vector2(Math.cos(a) * rInner, Math.sin(a) * rInner));
-  }
-  // across the pole thickness
-  points.push(new THREE.Vector2(0, rOuter));
-  // outer arc: pole -> equator
-  for (let i = 0; i <= SEG; i++) {
-    const a = (Math.PI / 2) * (1 - i / SEG);
-    points.push(new THREE.Vector2(Math.cos(a) * rOuter, Math.sin(a) * rOuter));
-  }
-  // rim, closing the profile
-  points.push(new THREE.Vector2(rInner, 0));
-  return new THREE.LatheGeometry(points, 56);
-}
+// A hemisphere: the +X half of a sphere, so its flat cut is a vertical plane.
+// Viewed side-on it reads as a semi-circle.
+const PHI_START = Math.PI / 2;
+const PHI_LENGTH = Math.PI;
 
 /**
- * Feature 3 — an exploded cut-away: the body's interior shells are pulled
- * apart along an axis, outermost to innermost, each labelled. The whole
- * assembly billboards to keep facing the camera.
+ * Feature 3 — an exploded cut-away. Each interior layer is a flat-cut
+ * hemisphere (a semi-circle when viewed side-on); the layers are pulled apart
+ * along an axis, outermost to innermost, each with a leader-line label. The
+ * whole assembly billboards to keep facing the camera.
  */
 export function DissectedBody({ layers, radius }: { layers: LayerSet; radius: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const appear = useRef(0);
 
-  const STEP = radius * 0.74;
-
   const pieces = useMemo(() => {
-    const list = layers.layers;
-    const n = list.length;
-    const minThick = radius * 0.07;
-    return list.map((layer, i) => {
-      const rOuter = layer.outer * radius;
-      const isCore = i === n - 1;
-      let rInner = isCore ? 0 : list[i + 1].outer * radius;
-      if (!isCore) rInner = Math.max(0, Math.min(rInner, rOuter - minThick));
-      return {
-        layer,
-        rOuter,
-        isCore,
-        x: i * STEP - ((n - 1) * STEP) / 2,
-        geometry: isCore ? null : makeShell(rInner, rOuter),
-      };
+    let x = 0;
+    const raw = layers.layers.map((layer) => {
+      const r = layer.outer * radius;
+      const piece = { layer, r, x };
+      x += r * 0.72; // overlap a little, like nested shells pulled apart
+      return piece;
     });
-  }, [layers, radius, STEP]);
+    const last = raw[raw.length - 1];
+    const shift = (last.x + last.r) / 2; // centre the row on the origin
+    return raw.map((p) => ({ ...p, x: p.x - shift }));
+  }, [layers, radius]);
 
   useFrame((state, delta) => {
     const g = groupRef.current;
@@ -70,10 +47,9 @@ export function DissectedBody({ layers, radius }: { layers: LayerSet; radius: nu
     );
   });
 
-  const n = pieces.length;
-  const labelX = ((n - 1) * STEP) / 2 + radius * 1.5;
-  const labelTop = radius * 1.05;
-  const labelStep = radius * 0.54;
+  const labelX = (pieces[pieces.length - 1]?.x ?? 0) + radius * 1.5;
+  const labelTop = radius * 1.0;
+  const labelStep = radius * 0.52;
 
   return (
     <group ref={groupRef}>
@@ -81,18 +57,14 @@ export function DissectedBody({ layers, radius }: { layers: LayerSet; radius: nu
         const labelY = labelTop - i * labelStep;
         return (
           <group key={p.layer.name}>
-            <mesh
-              position={[p.x, 0, 0]}
-              rotation={[Math.PI / 2, 0, 0]}
-              geometry={p.geometry ?? undefined}
-            >
-              {p.isCore && <sphereGeometry args={[p.rOuter, 48, 32]} />}
+            <mesh position={[p.x, 0, 0]}>
+              <sphereGeometry args={[p.r, 56, 40, PHI_START, PHI_LENGTH]} />
               <meshStandardMaterial
                 color={p.layer.color}
                 emissive={p.layer.color}
-                emissiveIntensity={0.24}
+                emissiveIntensity={0.22}
                 roughness={0.6}
-                metalness={0.08}
+                metalness={0.06}
                 side={THREE.DoubleSide}
               />
             </mesh>
@@ -100,7 +72,7 @@ export function DissectedBody({ layers, radius }: { layers: LayerSet; radius: nu
             {/* leader line from the layer out to its label */}
             <Line
               points={[
-                [p.x, p.rOuter * 0.6, p.rOuter * 0.34],
+                [p.x + p.r * 0.45, p.r * 0.5, p.r * 0.55],
                 [labelX - radius * 0.12, labelY, 0],
               ]}
               color="#ffffff"
@@ -128,7 +100,7 @@ export function DissectedBody({ layers, radius }: { layers: LayerSet; radius: nu
 
       {layers.estimated && (
         <Html
-          position={[0, -radius * 1.5, 0]}
+          position={[0, -radius * 1.35, 0]}
           center
           zIndexRange={[14, 0]}
           style={{ pointerEvents: 'none' }}
