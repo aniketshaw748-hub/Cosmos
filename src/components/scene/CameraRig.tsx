@@ -7,8 +7,8 @@ import { getObject } from '../../lib/registry';
 type OrbitLike = {
   target: THREE.Vector3;
   update: () => void;
-  enableRotate: boolean;
-  enablePan: boolean;
+  addEventListener: (type: string, handler: () => void) => void;
+  removeEventListener: (type: string, handler: () => void) => void;
 };
 
 const ORIGIN = new THREE.Vector3(0, 0, 0);
@@ -19,8 +19,8 @@ const FOCUS_OFFSET = 0.42;
 /**
  * Feature 1 — Click-to-Focus. On selection the camera eases in and frames the
  * (now frozen) object in the left part of the screen, leaving room for the
- * info panel on the right. Camera rotation is locked while focused so the
- * object stays put; deselecting releases free orbit again.
+ * info panel on the right. The user keeps full orbit / pan / zoom control;
+ * interacting cancels the auto-fly. Deselecting eases back to a free view.
  */
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
@@ -74,15 +74,22 @@ export function CameraRig() {
 
       flying.current = true;
       homing.current = false;
-      controls.enableRotate = false;
-      controls.enablePan = false;
     } else {
       flying.current = false;
       homing.current = true;
-      controls.enableRotate = true;
-      controls.enablePan = true;
     }
   }, [selected, dissectMode, controls, camera, size.width, size.height]);
+
+  // Any manual camera interaction (orbit / pan / zoom) cancels the auto-fly.
+  useEffect(() => {
+    if (!controls) return;
+    const cancel = () => {
+      flying.current = false;
+      homing.current = false;
+    };
+    controls.addEventListener('start', cancel);
+    return () => controls.removeEventListener('start', cancel);
+  }, [controls]);
 
   useFrame((_, delta) => {
     if (!controls) return;
