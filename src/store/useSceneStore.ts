@@ -28,6 +28,8 @@ interface SceneState {
   timelinePosition: number;
   /** is the "beyond the solar system" toast showing? (Feature 9) */
   toastVisible: boolean;
+  /** timestamp (ms) of the last toast, used to debounce it */
+  lastToastAt: number;
 
   select: (object: SceneObject) => void;
   deselect: () => void;
@@ -39,7 +41,8 @@ interface SceneState {
   setGalleryOpen: (open: boolean) => void;
   setTimelineOpen: (open: boolean) => void;
   setTimelinePosition: (pos: number) => void;
-  setToastVisible: (visible: boolean) => void;
+  triggerToast: () => void;
+  dismissToast: () => void;
 }
 
 export const useSceneStore = create<SceneState>((set) => ({
@@ -53,6 +56,7 @@ export const useSceneStore = create<SceneState>((set) => ({
   timelineOpen: false,
   timelinePosition: 1,
   toastVisible: false,
+  lastToastAt: 0,
 
   select: (object) => set({ selected: object, dissectMode: false, galleryOpen: false }),
   deselect: () => set({ selected: null, dissectMode: false, galleryOpen: false }),
@@ -64,5 +68,12 @@ export const useSceneStore = create<SceneState>((set) => ({
   setGalleryOpen: (open) => set({ galleryOpen: open }),
   setTimelineOpen: (open) => set({ timelineOpen: open }),
   setTimelinePosition: (pos) => set({ timelinePosition: pos }),
-  setToastVisible: (visible) => set({ toastVisible: visible }),
+  triggerToast: () =>
+    set((s) => {
+      // Debounced: not while another modal owns the scene, and not within 10s.
+      if (s.toastVisible || s.landingVisible || s.timelineOpen) return {};
+      if (Date.now() - s.lastToastAt < 10000) return {};
+      return { toastVisible: true, lastToastAt: Date.now() };
+    }),
+  dismissToast: () => set({ toastVisible: false }),
 }));

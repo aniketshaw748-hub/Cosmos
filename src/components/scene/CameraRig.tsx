@@ -84,6 +84,11 @@ export function CameraRig() {
     if (!controls) return;
     const dt = Math.min(delta, 0.1);
 
+    // Feature 9 — hint at the wider universe once the camera is far out.
+    if (camera.position.lengthSq() > 1_000_000) {
+      useSceneStore.getState().triggerToast();
+    }
+
     if (selected && flying.current) {
       const a = 1 - Math.pow(0.004, dt); // frame-rate-independent ~1.2s ease
       camera.position.lerp(desiredCam.current, a);

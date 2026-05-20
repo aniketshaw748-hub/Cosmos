@@ -6,6 +6,7 @@ import { Hud } from './components/ui/Hud';
 import { FocusVignette } from './components/ui/FocusVignette';
 import { NASAGallery } from './components/ui/NASAGallery';
 import { TimelineScrubber } from './components/ui/TimelineScrubber';
+import { ComingSoonToast } from './components/ui/ComingSoonToast';
 import { MobileNotice } from './components/ui/MobileNotice';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -20,6 +21,7 @@ export default function App() {
       <InfoPanel />
       <TimelineScrubber />
       <NASAGallery />
+      <ComingSoonToast />
       <Loader />
       <DailyHero />
       <MobileNotice />

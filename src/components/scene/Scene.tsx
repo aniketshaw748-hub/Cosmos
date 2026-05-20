@@ -16,6 +16,7 @@ import { milestoneAt } from '../../data/timelineMilestones';
 /** Root 3D scene: camera, lighting, the solar system / timeline and post-FX. */
 export function Scene() {
   const deselect = useSceneStore((s) => s.deselect);
+  const triggerToast = useSceneStore((s) => s.triggerToast);
   const highQuality = useSceneStore((s) => s.highQuality);
   const timelineOpen = useSceneStore((s) => s.timelineOpen);
   const timelinePosition = useSceneStore((s) => s.timelinePosition);
@@ -29,7 +30,10 @@ export function Scene() {
       camera={{ position: [0, 90, 220], fov: 55, near: 0.1, far: 8000 }}
       gl={{ logarithmicDepthBuffer: true, antialias: true }}
       dpr={highQuality ? [1, 2] : [1, 1.25]}
-      onPointerMissed={() => deselect()}
+      onPointerMissed={() => {
+        deselect();
+        triggerToast();
+      }}
     >
       <color attach="background" args={['#05060a']} />
       <ambientLight intensity={0.14} />
