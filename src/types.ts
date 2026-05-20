@@ -66,3 +66,34 @@ export interface SceneObject {
   /** world-space fallback position when the object isn't in the live registry */
   position?: [number, number, number];
 }
+
+/** NASA Astronomy Picture of the Day (normalised by /api/apod). */
+export interface ApodData {
+  title: string;
+  explanation: string;
+  url: string;
+  hdurl: string | null;
+  mediaType: string;
+  thumbnailUrl: string | null;
+  date: string;
+  copyright: string | null;
+}
+
+/** A single near-Earth object (normalised by /api/neo). */
+export interface NeoData {
+  id: string;
+  name: string;
+  diameterMeters: number;
+  hazardous: boolean;
+  missDistanceKm: number;
+  velocityKph: number;
+  approachDate: string;
+  magnitude: number | null;
+}
+
+/** The near-Earth object feed for a single day. */
+export interface NeoFeed {
+  date: string;
+  count: number;
+  asteroids: NeoData[];
+}

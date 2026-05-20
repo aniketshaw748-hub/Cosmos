@@ -4,6 +4,7 @@ import { OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { Sun } from './Sun';
 import { SolarSystem } from './SolarSystem';
+import { AsteroidBelt } from './AsteroidBelt';
 import { Starfield } from './Starfield';
 import { CameraRig } from './CameraRig';
 import { useSceneStore } from '../../store/useSceneStore';
@@ -26,6 +27,7 @@ export function Scene() {
         <Starfield />
         <Sun />
         <SolarSystem />
+        <AsteroidBelt />
       </Suspense>
 
       <OrbitControls

@@ -1,4 +1,4 @@
-import type { BodyDef, SceneObject } from '../types';
+import type { BodyDef, NeoData, SceneObject, Stat } from '../types';
 
 /** Converts a hardcoded body definition into a selectable SceneObject. */
 export function bodyToSceneObject(body: BodyDef): SceneObject {
@@ -16,5 +16,41 @@ export function bodyToSceneObject(body: BodyDef): SceneObject {
       description: body.blurb,
       ...Object.fromEntries(body.stats.map((s) => [s.label, s.value])),
     },
+  };
+}
+
+/** Converts a live near-Earth object into a selectable SceneObject. */
+export function neoToSceneObject(
+  neo: NeoData,
+  displayRadius: number,
+  position: [number, number, number],
+): SceneObject {
+  const stats: Stat[] = [
+    { label: 'Estimated diameter', value: `${Math.round(neo.diameterMeters).toLocaleString()} m` },
+    { label: 'Miss distance', value: `${Math.round(neo.missDistanceKm).toLocaleString()} km` },
+    { label: 'Relative velocity', value: `${Math.round(neo.velocityKph).toLocaleString()} km/h` },
+    { label: 'Close approach', value: neo.approachDate },
+    { label: 'Potentially hazardous', value: neo.hazardous ? 'Yes — monitored' : 'No' },
+  ];
+
+  return {
+    id: `neo-${neo.id}`,
+    name: neo.name,
+    kind: 'asteroid',
+    radius: displayRadius,
+    blurb: `A near-Earth asteroid tracked by NASA on its close approach to our planet.`,
+    stats,
+    suggestedQuestions: [
+      'How dangerous is this asteroid, really?',
+      'What is an asteroid like this made of?',
+      'What would happen if it hit Earth?',
+    ],
+    aiContext: {
+      name: neo.name,
+      type: 'near-Earth asteroid',
+      description: 'A real asteroid from NASA’s near-Earth object feed.',
+      ...Object.fromEntries(stats.map((s) => [s.label, s.value])),
+    },
+    position,
   };
 }
