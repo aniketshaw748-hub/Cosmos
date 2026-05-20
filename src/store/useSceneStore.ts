@@ -30,6 +30,8 @@ interface SceneState {
   toastVisible: boolean;
   /** timestamp (ms) of the last toast, used to debounce it */
   lastToastAt: number;
+  /** bumped to request a zoom-out to the whole-system overview */
+  overviewNonce: number;
 
   select: (object: SceneObject) => void;
   deselect: () => void;
@@ -43,6 +45,7 @@ interface SceneState {
   setTimelinePosition: (pos: number) => void;
   triggerToast: () => void;
   dismissToast: () => void;
+  viewOverview: () => void;
 }
 
 export const useSceneStore = create<SceneState>((set) => ({
@@ -57,6 +60,7 @@ export const useSceneStore = create<SceneState>((set) => ({
   timelinePosition: 1,
   toastVisible: false,
   lastToastAt: 0,
+  overviewNonce: 0,
 
   select: (object) => set({ selected: object, dissectMode: false, galleryOpen: false }),
   deselect: () => set({ selected: null, dissectMode: false, galleryOpen: false }),
@@ -76,4 +80,12 @@ export const useSceneStore = create<SceneState>((set) => ({
       return { toastVisible: true, lastToastAt: Date.now() };
     }),
   dismissToast: () => set({ toastVisible: false }),
+  viewOverview: () =>
+    set((s) => ({
+      selected: null,
+      dissectMode: false,
+      galleryOpen: false,
+      timelineOpen: false,
+      overviewNonce: s.overviewNonce + 1,
+    })),
 }));

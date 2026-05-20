@@ -14,6 +14,7 @@ export function Hud() {
   const toggleHighQuality = useSceneStore((s) => s.toggleHighQuality);
   const timelineOpen = useSceneStore((s) => s.timelineOpen);
   const setTimelineOpen = useSceneStore((s) => s.setTimelineOpen);
+  const viewOverview = useSceneStore((s) => s.viewOverview);
 
   if (landingVisible) return null;
 
@@ -44,6 +45,12 @@ export function Hud() {
             className="rounded-full bg-white/90 px-4 py-1.5 text-xs font-semibold text-[#05060a] transition hover:bg-white"
           >
             Surprise me
+          </button>
+          <button
+            onClick={viewOverview}
+            className="rounded-full px-4 py-1.5 text-xs font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
+          >
+            Overview
           </button>
           <button
             onClick={openTimeline}

@@ -26,11 +26,14 @@ export function CameraRig() {
   const controls = useThree((s) => s.controls) as OrbitLike | null;
   const selected = useSceneStore((s) => s.selected);
   const dissectMode = useSceneStore((s) => s.dissectMode);
+  const overviewNonce = useSceneStore((s) => s.overviewNonce);
 
   const desiredCam = useRef(new THREE.Vector3());
   const desiredTarget = useRef(new THREE.Vector3());
   const flying = useRef(false);
   const homing = useRef(false);
+  const overviewing = useRef(false);
+  const lastNonce = useRef(0);
 
   /** World position of the selected object (or the origin). */
   const resolvePos = (out: THREE.Vector3): THREE.Vector3 => {
@@ -85,12 +88,29 @@ export function CameraRig() {
     }
   }, [selected, dissectMode, controls, camera, size.width, size.height]);
 
+  // Zoom out to frame the whole solar system.
+  useEffect(() => {
+    if (!controls || overviewNonce === lastNonce.current) return;
+    lastNonce.current = overviewNonce;
+    const vFov = (camera.fov * Math.PI) / 180;
+    const aspect = size.width / Math.max(size.height, 1);
+    const hHalf = Math.atan(Math.tan(vFov / 2) * aspect);
+    const distance = Math.max(280 / Math.tan(hHalf), 250);
+    desiredCam.current.set(0, 0.5, 1).normalize().multiplyScalar(distance);
+    desiredTarget.current.copy(ORIGIN);
+    camera.clearViewOffset();
+    overviewing.current = true;
+    flying.current = false;
+    homing.current = false;
+  }, [overviewNonce, controls, camera, size.width, size.height]);
+
   // Any manual camera interaction (orbit / pan / zoom) cancels the auto-fly.
   useEffect(() => {
     if (!controls) return;
     const cancel = () => {
       flying.current = false;
       homing.current = false;
+      overviewing.current = false;
     };
     controls.addEventListener('start', cancel);
     return () => controls.removeEventListener('start', cancel);
@@ -105,7 +125,15 @@ export function CameraRig() {
       useSceneStore.getState().triggerToast();
     }
 
-    if (selected && flying.current) {
+    if (overviewing.current) {
+      const a = 1 - Math.pow(0.006, dt);
+      camera.position.lerp(desiredCam.current, a);
+      controls.target.lerp(desiredTarget.current, a);
+      controls.update();
+      if (camera.position.distanceTo(desiredCam.current) < 0.5) {
+        overviewing.current = false;
+      }
+    } else if (selected && flying.current) {
       const a = 1 - Math.pow(0.004, dt); // frame-rate-independent ~1.2s ease
       camera.position.lerp(desiredCam.current, a);
       controls.target.lerp(desiredTarget.current, a);
