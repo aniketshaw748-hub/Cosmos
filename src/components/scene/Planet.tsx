@@ -85,12 +85,17 @@ export function Planet({ data }: { data: BodyDef }) {
               <mesh onClick={handleClick} onPointerOver={handleOver} onPointerOut={handleOut}>
                 <sphereGeometry args={[data.radius, 64, 64]} />
                 {data.textureUrl ? (
-                  <TexturedSurface url={data.textureUrl} />
+                  data.nightUrl ? (
+                    <RichSurface dayUrl={data.textureUrl} nightUrl={data.nightUrl} />
+                  ) : (
+                    <TexturedSurface url={data.textureUrl} />
+                  )
                 ) : (
                   <meshStandardMaterial color={data.color} roughness={0.9} metalness={0.05} />
                 )}
               </mesh>
             </group>
+            {data.cloudUrl && <CloudLayer url={data.cloudUrl} radius={data.radius} />}
             {data.rings && <PlanetRings rings={data.rings} />}
             {isSelected && <RotationAxis radius={data.radius} />}
           </>
@@ -109,6 +114,48 @@ function TexturedSurface({ url }: { url: string }) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
   return <meshStandardMaterial map={texture} roughness={0.92} metalness={0.04} />;
+}
+
+/** Earth-style surface: a day map plus a night-side city-lights emissive map. */
+function RichSurface({ dayUrl, nightUrl }: { dayUrl: string; nightUrl: string }) {
+  const [day, night] = useTexture([dayUrl, nightUrl]);
+  day.colorSpace = THREE.SRGBColorSpace;
+  night.colorSpace = THREE.SRGBColorSpace;
+  day.anisotropy = 8;
+  return (
+    <meshStandardMaterial
+      map={day}
+      emissiveMap={night}
+      emissive="#ffffff"
+      emissiveIntensity={0.6}
+      roughness={0.9}
+      metalness={0.04}
+    />
+  );
+}
+
+/** A transparent cloud shell that rotates slightly faster than the surface. */
+function CloudLayer({ url, radius }: { url: string; radius: number }) {
+  const ref = useRef<THREE.Mesh>(null);
+  const texture = useTexture(url);
+  const paused = useSceneStore((s) => s.paused);
+  useFrame((_, delta) => {
+    if (!paused && ref.current) {
+      ref.current.rotation.y += 1.15 * SPIN_SCALE * Math.min(delta, MAX_DELTA);
+    }
+  });
+  return (
+    <mesh ref={ref} raycast={() => null}>
+      <sphereGeometry args={[radius * 1.015, 48, 48]} />
+      <meshStandardMaterial
+        color="#ffffff"
+        alphaMap={texture}
+        transparent
+        depthWrite={false}
+        roughness={1}
+      />
+    </mesh>
+  );
 }
 
 /** Translucent back-side shell that reads as a rim glow on hover / selection. */

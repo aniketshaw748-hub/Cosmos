@@ -9,6 +9,8 @@ export function Hud() {
   const select = useSceneStore((s) => s.select);
   const selectedId = useSceneStore((s) => s.selected?.id);
   const landingVisible = useSceneStore((s) => s.landingVisible);
+  const highQuality = useSceneStore((s) => s.highQuality);
+  const toggleHighQuality = useSceneStore((s) => s.toggleHighQuality);
 
   if (landingVisible) return null;
 
@@ -39,6 +41,18 @@ export function Hud() {
           className="rounded-full px-4 py-1.5 text-xs font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
         >
           {paused ? 'Resume' : 'Pause'}
+        </button>
+        <button
+          onClick={toggleHighQuality}
+          aria-pressed={highQuality}
+          title="Toggle high-quality rendering"
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+            highQuality
+              ? 'bg-sky-400/20 text-sky-200'
+              : 'text-white/55 hover:bg-white/10 hover:text-white'
+          }`}
+        >
+          HD
         </button>
         <span className="hidden px-2 text-[11px] text-white/35 md:inline">
           Drag to orbit · Scroll to zoom · Space to pause

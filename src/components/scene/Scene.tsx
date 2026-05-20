@@ -14,12 +14,13 @@ import { useSceneStore } from '../../store/useSceneStore';
 /** Root 3D scene: camera, lighting, the solar system and post-processing. */
 export function Scene() {
   const deselect = useSceneStore((s) => s.deselect);
+  const highQuality = useSceneStore((s) => s.highQuality);
 
   return (
     <Canvas
       camera={{ position: [0, 90, 220], fov: 55, near: 0.1, far: 8000 }}
       gl={{ logarithmicDepthBuffer: true, antialias: true }}
-      dpr={[1, 2]}
+      dpr={highQuality ? [1, 2] : [1, 1.25]}
       onPointerMissed={() => deselect()}
     >
       <color attach="background" args={['#05060a']} />

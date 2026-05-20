@@ -103,7 +103,9 @@ export const PLANETS: BodyDef[] = [
     tilt: deg(AXIAL_TILTS.earth),
     phase: 4,
     color: '#3a6fd8',
-    textureUrl: '/textures/earth.jpg',
+    textureUrl: '/textures/earth_day.jpg',
+    nightUrl: '/textures/earth_night.png',
+    cloudUrl: '/textures/earth_clouds.png',
     blurb: 'Our home — the only world we know of with liquid water oceans and life.',
     stats: [
       { label: 'Diameter', value: '12,742 km' },
@@ -218,6 +220,12 @@ export const PLANETS: BodyDef[] = [
     phase: 0.2,
     color: '#9fe0e8',
     textureUrl: '/textures/uranus.jpg',
+    rings: {
+      innerRadius: 2 * 1.5,
+      outerRadius: 2 * 2.0,
+      colorMap: '/textures/uranus_ring_color.jpg',
+      alphaMap: '/textures/uranus_ring_pattern.gif',
+    },
     blurb: 'The sideways planet — Uranus is tipped so far over it orbits the Sun on its side.',
     stats: [
       { label: 'Diameter', value: '50,724 km' },

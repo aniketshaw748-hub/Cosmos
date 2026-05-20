@@ -40,6 +40,10 @@ export interface BodyDef {
   color: string;
   /** equirectangular surface texture */
   textureUrl?: string;
+  /** night-side city-lights map (Earth) */
+  nightUrl?: string;
+  /** transparent cloud-layer texture (Earth) */
+  cloudUrl?: string;
   /** self-lit body (the Sun) */
   emissive?: boolean;
   rings?: RingConfig;
