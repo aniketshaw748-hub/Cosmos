@@ -4,29 +4,36 @@ import * as THREE from 'three';
 import { useSceneStore } from '../../store/useSceneStore';
 import { getObject } from '../../lib/registry';
 
-type OrbitLike = { target: THREE.Vector3; update: () => void };
+type OrbitLike = {
+  target: THREE.Vector3;
+  update: () => void;
+  enableRotate: boolean;
+  enablePan: boolean;
+};
 
 const ORIGIN = new THREE.Vector3(0, 0, 0);
 
+/** How far left of screen-centre the focused object sits (0 = centre, 1 = edge). */
+const FOCUS_OFFSET = 0.42;
+
 /**
- * Smoothly flies the camera to the selected object, then locks on and follows
- * it as it orbits — so the user can still orbit around a moving planet. With
- * nothing selected, it eases the look-at point back to the Sun, then releases
- * full control back to OrbitControls.
+ * Feature 1 — Click-to-Focus. On selection the camera eases in and frames the
+ * (now frozen) object in the left part of the screen, leaving room for the
+ * info panel on the right. Camera rotation is locked while focused so the
+ * object stays put; deselecting releases free orbit again.
  */
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
   const controls = useThree((s) => s.controls) as OrbitLike | null;
   const selected = useSceneStore((s) => s.selected);
 
-  const lastObjPos = useRef(new THREE.Vector3());
   const desiredCam = useRef(new THREE.Vector3());
-  const objDelta = useRef(new THREE.Vector3());
-  const scratch = useRef(new THREE.Vector3());
+  const desiredTarget = useRef(new THREE.Vector3());
   const flying = useRef(false);
   const homing = useRef(false);
 
-  /** Current world position of the selected object (or the Sun at origin). */
+  /** World position of the selected object (or the origin). */
   const resolvePos = (out: THREE.Vector3): THREE.Vector3 => {
     if (selected) {
       const obj = getObject(selected.id);
@@ -37,45 +44,57 @@ export function CameraRig() {
   };
 
   useEffect(() => {
+    if (!controls) return;
+
     if (selected) {
-      const pos = resolvePos(new THREE.Vector3());
-      lastObjPos.current.copy(pos);
-      // Keep the current viewing angle, just move in close.
-      const dir = new THREE.Vector3().subVectors(camera.position, pos);
-      if (dir.lengthSq() < 1e-4) dir.set(0, 0.45, 1);
-      dir.normalize();
-      const distance = Math.max(selected.radius * 4.5, 6);
-      desiredCam.current.copy(pos).addScaledVector(dir, distance);
-      desiredCam.current.y += selected.radius * 1.4 + 1;
+      const focus = resolvePos(new THREE.Vector3());
+      // Keep the current viewing angle so it feels like a pull-in, not a cut.
+      const viewDir = new THREE.Vector3().subVectors(camera.position, focus);
+      if (viewDir.lengthSq() < 1e-4) viewDir.set(0.55, 0.4, 1);
+      viewDir.normalize();
+
+      const distance = Math.max(selected.radius * 5, 7);
+
+      // Shift the look-at point right so the object renders on the left.
+      const vFov = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180;
+      const aspect = size.width / Math.max(size.height, 1);
+      const hHalf = Math.atan(Math.tan(vFov / 2) * aspect);
+      const shift = FOCUS_OFFSET * distance * Math.tan(hHalf);
+      const right = new THREE.Vector3().crossVectors(camera.up, viewDir).normalize();
+
+      desiredCam.current
+        .copy(focus)
+        .addScaledVector(viewDir, distance)
+        .addScaledVector(camera.up, selected.radius * 1.1);
+      desiredTarget.current.copy(focus).addScaledVector(right, shift);
+
       flying.current = true;
       homing.current = false;
+      controls.enableRotate = false;
+      controls.enablePan = false;
     } else {
       flying.current = false;
       homing.current = true;
+      controls.enableRotate = true;
+      controls.enablePan = true;
     }
-  }, [selected, camera]);
+  }, [selected, controls, camera, size.width, size.height]);
 
   useFrame((_, delta) => {
     if (!controls) return;
     const dt = Math.min(delta, 0.1);
 
-    if (selected) {
-      const pos = resolvePos(scratch.current);
-      objDelta.current.subVectors(pos, lastObjPos.current);
-      lastObjPos.current.copy(pos);
-
-      if (flying.current) {
-        const a = 1 - Math.pow(0.0009, dt); // frame-rate-independent easing
-        camera.position.lerp(desiredCam.current, a);
-        controls.target.lerp(pos, a);
-        desiredCam.current.add(objDelta.current); // keep approach point glued on
-        if (camera.position.distanceTo(desiredCam.current) < 0.4) flying.current = false;
-      } else {
-        // Locked on: track the planet 1:1 so the user can orbit around it.
-        camera.position.add(objDelta.current);
-        controls.target.copy(pos);
-      }
+    if (selected && flying.current) {
+      const a = 1 - Math.pow(0.004, dt); // frame-rate-independent ~1.2s ease
+      camera.position.lerp(desiredCam.current, a);
+      controls.target.lerp(desiredTarget.current, a);
       controls.update();
+      if (camera.position.distanceTo(desiredCam.current) < 0.06) {
+        camera.position.copy(desiredCam.current);
+        controls.target.copy(desiredTarget.current);
+        controls.update();
+        flying.current = false;
+      }
     } else if (homing.current) {
       const a = 1 - Math.pow(0.02, dt);
       controls.target.lerp(ORIGIN, a);

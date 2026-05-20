@@ -157,12 +157,13 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, MAX_DELTA);
-    if (!paused) {
+    // Orbit freezes when this asteroid is focused (Feature 1) or globally paused.
+    if (!paused && !isSelected) {
       theta.current += speed * ORBIT_SPEED_SCALE * dt;
-      if (meshRef.current) {
-        meshRef.current.rotation.x += 0.4 * dt;
-        meshRef.current.rotation.y += 0.3 * dt;
-      }
+    }
+    if (!paused && meshRef.current) {
+      meshRef.current.rotation.x += 0.4 * dt;
+      meshRef.current.rotation.y += 0.3 * dt;
     }
     if (orbitRef.current) {
       orbitRef.current.position.set(

@@ -32,11 +32,13 @@ export function Planet({ data }: { data: BodyDef }) {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, MAX_DELTA);
-    if (!paused) {
+    // Orbit freezes when this planet is focused (Feature 1) or globally paused.
+    if (!paused && !isSelected) {
       angle.current += data.orbitSpeed * ORBIT_SPEED_SCALE * dt;
-      if (spinRef.current) {
-        spinRef.current.rotation.y += data.spinSpeed * SPIN_SCALE * dt;
-      }
+    }
+    // Axial spin continues even while focused — only a global pause stops it.
+    if (!paused && spinRef.current) {
+      spinRef.current.rotation.y += data.spinSpeed * SPIN_SCALE * dt;
     }
     const orbit = orbitRef.current;
     if (orbit) {

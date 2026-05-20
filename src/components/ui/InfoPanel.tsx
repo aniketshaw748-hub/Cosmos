@@ -30,7 +30,7 @@ export function InfoPanel() {
   return (
     <aside
       aria-hidden={!open}
-      className={`pointer-events-auto absolute right-0 top-0 z-20 flex h-full w-[390px] max-w-[92vw] flex-col border-l border-white/10 bg-[#0a0d16]/90 shadow-2xl backdrop-blur-xl transition-transform duration-[420ms] ease-out ${
+      className={`pointer-events-auto absolute right-0 top-0 z-20 flex h-full w-[clamp(380px,38vw,560px)] max-w-[94vw] flex-col border-l border-white/10 bg-[#0a0d16]/90 shadow-2xl backdrop-blur-xl transition-transform duration-[420ms] ease-out ${
         open ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
