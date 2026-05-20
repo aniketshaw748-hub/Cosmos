@@ -42,6 +42,7 @@ function DecorativeBelt() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const paused = useSceneStore((s) => s.paused);
+  const anySelected = useSceneStore((s) => s.selected !== null);
 
   const geometry = useMemo(() => new THREE.DodecahedronGeometry(1, 0), []);
   const material = useMemo(
@@ -83,7 +84,7 @@ function DecorativeBelt() {
   }, [matrices]);
 
   useFrame((_, delta) => {
-    if (!paused && groupRef.current) {
+    if (!paused && !anySelected && groupRef.current) {
       groupRef.current.rotation.y += 0.008 * Math.min(delta, MAX_DELTA);
     }
   });
@@ -143,6 +144,7 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
   const id = `neo-${neo.id}`;
   const isHovered = useSceneStore((s) => s.hovered?.id === id);
   const isSelected = useSceneStore((s) => s.selected?.id === id);
+  const anySelected = useSceneStore((s) => s.selected !== null);
   const dissectMode = useSceneStore((s) => s.dissectMode);
   const dissecting = isSelected && dissectMode;
   const active = isHovered || isSelected;
@@ -161,8 +163,8 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, MAX_DELTA);
-    // Orbit freezes when this asteroid is focused (Feature 1) or globally paused.
-    if (!paused && !isSelected) {
+    // Orbit freezes for the whole system whenever anything is focused.
+    if (!paused && !anySelected) {
       theta.current += speed * ORBIT_SPEED_SCALE * dt;
     }
     if (!paused && meshRef.current) {

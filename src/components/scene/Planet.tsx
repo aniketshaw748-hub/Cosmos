@@ -27,11 +27,9 @@ export function Planet({ data }: { data: BodyDef }) {
   const isHovered = useSceneStore((s) => s.hovered?.id === data.id);
   const isSelected = useSceneStore((s) => s.selected?.id === data.id);
   const dissectMode = useSceneStore((s) => s.dissectMode);
-  const childMoonSelected = useSceneStore(
-    (s) => s.selected?.kind === 'moon' && s.selected?.parentId === data.id,
-  );
+  // Focusing any object freezes the whole system's revolution.
+  const anySelected = useSceneStore((s) => s.selected !== null);
   const dissecting = isSelected && dissectMode;
-  const frozenOrbit = isSelected || childMoonSelected;
   const active = isHovered || isSelected;
 
   // Register the orbit node so the camera rig can follow this planet live.
@@ -42,8 +40,8 @@ export function Planet({ data }: { data: BodyDef }) {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, MAX_DELTA);
-    // Orbit freezes when this planet (or one of its moons) is focused.
-    if (!paused && !frozenOrbit) {
+    // Orbit freezes for the whole system whenever anything is focused.
+    if (!paused && !anySelected) {
       angle.current += data.orbitSpeed * ORBIT_SPEED_SCALE * dt;
     }
     // Axial spin continues even while focused — only a global pause stops it.

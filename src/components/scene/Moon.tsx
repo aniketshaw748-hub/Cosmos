@@ -26,10 +26,10 @@ export function Moon({ data }: { data: MoonData }) {
   const paused = useSceneStore((s) => s.paused);
   const isHovered = useSceneStore((s) => s.hovered?.id === sceneId);
   const isSelected = useSceneStore((s) => s.selected?.id === sceneId);
-  const parentSelected = useSceneStore((s) => s.selected?.id === data.parentId);
   const dissectMode = useSceneStore((s) => s.dissectMode);
+  // Focusing any object freezes the whole system's revolution.
+  const anySelected = useSceneStore((s) => s.selected !== null);
   const dissecting = isSelected && dissectMode;
-  const frozen = paused || isSelected || parentSelected;
   const active = isHovered || isSelected;
 
   useEffect(() => {
@@ -39,7 +39,8 @@ export function Moon({ data }: { data: MoonData }) {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, MAX_DELTA);
-    if (!frozen) {
+    // Orbit freezes whenever anything is focused; axial spin continues.
+    if (!paused && !anySelected) {
       const dir = data.retrograde ? -1 : 1;
       angle.current += (dir / data.periodDays) * MOON_SPEED_SCALE * dt;
     }
