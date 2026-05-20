@@ -6,6 +6,8 @@ import { Sun } from './Sun';
 import { SolarSystem } from './SolarSystem';
 import { AsteroidBelt } from './AsteroidBelt';
 import { Starfield } from './Starfield';
+import { OrbitTrails } from './OrbitTrails';
+import { HoverLabel } from './HoverLabel';
 import { CameraRig } from './CameraRig';
 import { useSceneStore } from '../../store/useSceneStore';
 
@@ -29,6 +31,9 @@ export function Scene() {
         <SolarSystem />
         <AsteroidBelt />
       </Suspense>
+
+      <OrbitTrails />
+      <HoverLabel />
 
       <OrbitControls
         makeDefault

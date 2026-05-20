@@ -40,7 +40,7 @@ export function Sun() {
         }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation();
-          setHovered(SUN.id);
+          setHovered({ id: SUN.id, name: SUN.name });
           document.body.style.cursor = 'pointer';
         }}
         onPointerOut={() => {

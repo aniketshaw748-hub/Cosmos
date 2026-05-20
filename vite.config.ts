@@ -13,6 +13,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), apiDevPlugin()],
     server: { port: 5173 },
-    build: { target: 'es2022' },
+    build: { target: 'es2022', chunkSizeWarningLimit: 1600 },
   };
 });

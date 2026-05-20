@@ -139,7 +139,7 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
   const setHovered = useSceneStore((s) => s.setHovered);
   const paused = useSceneStore((s) => s.paused);
   const id = `neo-${neo.id}`;
-  const isHovered = useSceneStore((s) => s.hoveredId === id);
+  const isHovered = useSceneStore((s) => s.hovered?.id === id);
   const isSelected = useSceneStore((s) => s.selected?.id === id);
   const active = isHovered || isSelected;
 
@@ -206,7 +206,7 @@ function NearEarthObject({ neo, angle, radius, y, speed }: NeoProps) {
         onClick={handleClick}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation();
-          setHovered(id);
+          setHovered({ id, name: neo.name });
           document.body.style.cursor = 'pointer';
         }}
         onPointerOut={() => {

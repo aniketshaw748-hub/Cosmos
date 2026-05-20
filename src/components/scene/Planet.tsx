@@ -20,7 +20,7 @@ export function Planet({ data }: { data: BodyDef }) {
   const select = useSceneStore((s) => s.select);
   const setHovered = useSceneStore((s) => s.setHovered);
   const paused = useSceneStore((s) => s.paused);
-  const isHovered = useSceneStore((s) => s.hoveredId === data.id);
+  const isHovered = useSceneStore((s) => s.hovered?.id === data.id);
   const isSelected = useSceneStore((s) => s.selected?.id === data.id);
   const active = isHovered || isSelected;
 
@@ -51,7 +51,7 @@ export function Planet({ data }: { data: BodyDef }) {
   };
   const handleOver = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    setHovered(data.id);
+    setHovered({ id: data.id, name: data.name });
     document.body.style.cursor = 'pointer';
   };
   const handleOut = () => {
