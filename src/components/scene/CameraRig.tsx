@@ -27,6 +27,7 @@ export function CameraRig() {
   const size = useThree((s) => s.size);
   const controls = useThree((s) => s.controls) as OrbitLike | null;
   const selected = useSceneStore((s) => s.selected);
+  const dissectMode = useSceneStore((s) => s.dissectMode);
 
   const desiredCam = useRef(new THREE.Vector3());
   const desiredTarget = useRef(new THREE.Vector3());
@@ -53,13 +54,16 @@ export function CameraRig() {
       if (viewDir.lengthSq() < 1e-4) viewDir.set(0.55, 0.4, 1);
       viewDir.normalize();
 
-      const distance = Math.max(selected.radius * 5, 7);
+      // The exploded dissection is much wider, so pull the camera back for it.
+      const distance = dissectMode
+        ? Math.max(selected.radius * 10, 16)
+        : Math.max(selected.radius * 5, 7);
 
       // Shift the look-at point right so the object renders on the left.
       const vFov = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180;
       const aspect = size.width / Math.max(size.height, 1);
       const hHalf = Math.atan(Math.tan(vFov / 2) * aspect);
-      const shift = FOCUS_OFFSET * distance * Math.tan(hHalf);
+      const shift = (dissectMode ? 0.14 : FOCUS_OFFSET) * distance * Math.tan(hHalf);
       const right = new THREE.Vector3().crossVectors(camera.up, viewDir).normalize();
 
       desiredCam.current
@@ -78,7 +82,7 @@ export function CameraRig() {
       controls.enableRotate = true;
       controls.enablePan = true;
     }
-  }, [selected, controls, camera, size.width, size.height]);
+  }, [selected, dissectMode, controls, camera, size.width, size.height]);
 
   useFrame((_, delta) => {
     if (!controls) return;
