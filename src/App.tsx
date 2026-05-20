@@ -5,6 +5,7 @@ import { Loader } from './components/ui/Loader';
 import { Hud } from './components/ui/Hud';
 import { FocusVignette } from './components/ui/FocusVignette';
 import { NASAGallery } from './components/ui/NASAGallery';
+import { TimelineScrubber } from './components/ui/TimelineScrubber';
 import { MobileNotice } from './components/ui/MobileNotice';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -17,6 +18,7 @@ export default function App() {
       <FocusVignette />
       <Hud />
       <InfoPanel />
+      <TimelineScrubber />
       <NASAGallery />
       <Loader />
       <DailyHero />

@@ -9,12 +9,20 @@ import { Starfield } from './Starfield';
 import { OrbitTrails } from './OrbitTrails';
 import { HoverLabel } from './HoverLabel';
 import { CameraRig } from './CameraRig';
+import { TimelineScene } from './TimelineScene';
 import { useSceneStore } from '../../store/useSceneStore';
+import { milestoneAt } from '../../data/timelineMilestones';
 
-/** Root 3D scene: camera, lighting, the solar system and post-processing. */
+/** Root 3D scene: camera, lighting, the solar system / timeline and post-FX. */
 export function Scene() {
   const deselect = useSceneStore((s) => s.deselect);
   const highQuality = useSceneStore((s) => s.highQuality);
+  const timelineOpen = useSceneStore((s) => s.timelineOpen);
+  const timelinePosition = useSceneStore((s) => s.timelinePosition);
+
+  const era = timelineOpen ? milestoneAt(timelinePosition).milestone.era : 'modern';
+  // The detailed solar system shows for the modern, life and bombardment eras.
+  const showRealSystem = era === 'modern' || era === 'life' || era === 'bombardment';
 
   return (
     <Canvas
@@ -28,12 +36,17 @@ export function Scene() {
 
       <Suspense fallback={null}>
         <Starfield />
-        <Sun />
-        <SolarSystem />
-        <AsteroidBelt />
+        {showRealSystem && (
+          <>
+            <Sun />
+            <SolarSystem />
+            <AsteroidBelt />
+          </>
+        )}
+        {timelineOpen && era !== 'modern' && <TimelineScene era={era} />}
       </Suspense>
 
-      <OrbitTrails />
+      {showRealSystem && <OrbitTrails />}
       <HoverLabel />
 
       <OrbitControls
