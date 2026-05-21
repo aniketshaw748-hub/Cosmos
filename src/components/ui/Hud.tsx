@@ -16,6 +16,9 @@ export function Hud() {
   const timelineOpen = useSceneStore((s) => s.timelineOpen);
   const setTimelineOpen = useSceneStore((s) => s.setTimelineOpen);
   const viewOverview = useSceneStore((s) => s.viewOverview);
+  const bumpSurprise = useSceneStore((s) => s.bumpSurprise);
+  const toggleCuriosityLog = useSceneStore((s) => s.toggleCuriosityLog);
+  const curiosityCount = useSceneStore((s) => s.curiosityLog.length);
   const mode = useViewportMode();
 
   if (landingVisible) return null;
@@ -27,6 +30,8 @@ export function Hud() {
     const pool = ALL_BODIES.filter((b) => b.id !== selectedId);
     const body = pool[Math.floor(Math.random() * pool.length)];
     select(bodyToSceneObject(body));
+    // Let the Curious AI greet the new arrival with a question (trigger 6).
+    bumpSurprise();
   };
   const openTimeline = () => {
     deselect();
@@ -86,6 +91,19 @@ export function Hud() {
             }`}
           >
             HD
+          </button>
+          <button
+            onClick={toggleCuriosityLog}
+            title="Curiosity Log — questions the AI asked you"
+            className={`${btn} ${ghost} flex items-center gap-1`}
+          >
+            <span aria-hidden>✦</span>
+            {!isLandscape && <span>Curious AI</span>}
+            {curiosityCount > 0 && (
+              <span className="rounded-full bg-sky-400/25 px-1.5 text-[9px] font-bold leading-[1.4] text-sky-200">
+                {curiosityCount}
+              </span>
+            )}
           </button>
           {mode === 'desktop' && (
             <span className="hidden px-2 text-[11px] text-white/35 lg:inline">

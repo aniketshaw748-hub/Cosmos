@@ -38,6 +38,7 @@ export function CameraRig() {
   const homing = useRef(false);
   const overviewing = useRef(false);
   const lastNonce = useRef(0);
+  const zoomAccum = useRef(0);
 
   /** World position of the selected object (or the origin). */
   const resolvePos = (out: THREE.Vector3): THREE.Vector3 => {
@@ -135,6 +136,14 @@ export function CameraRig() {
     // Feature 9 — hint at the wider universe once the camera is far out.
     if (camera.position.lengthSq() > 1_000_000) {
       useSceneStore.getState().triggerToast();
+    }
+
+    // Report the camera-to-focus distance (throttled) — the Curious AI's
+    // zoom trigger watches this to spot "way in" / "way out" framing.
+    zoomAccum.current += dt;
+    if (zoomAccum.current > 0.4) {
+      zoomAccum.current = 0;
+      useSceneStore.getState().setCameraDistance(camera.position.distanceTo(controls.target));
     }
 
     if (overviewing.current) {

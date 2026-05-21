@@ -8,6 +8,7 @@ import { NASAGallery } from './components/ui/NASAGallery';
 import { TimelineScrubber } from './components/ui/TimelineScrubber';
 import { ComingSoonToast } from './components/ui/ComingSoonToast';
 import { MobileNotice } from './components/ui/MobileNotice';
+import { CuriousAi } from './components/ui/CuriousAi';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
       <TimelineScrubber />
       <NASAGallery />
       <ComingSoonToast />
+      <CuriousAi />
       <Loader />
       <DailyHero />
       <MobileNotice />

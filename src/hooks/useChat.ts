@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ChatMessage, SceneObject } from '../types';
 import { askTutor } from '../lib/ai';
+import { useSceneStore } from '../store/useSceneStore';
 
 /** A chat turn, plus client-only flags for a failed request. */
 export type ChatMsg = ChatMessage & { error?: boolean; failedQuestion?: string };
@@ -55,6 +56,8 @@ export function useChat(object: SceneObject): ChatController {
       ]);
     } finally {
       setLoading(false);
+      // Marks when this exchange ended — the Curious AI waits on this.
+      useSceneStore.getState().noteChatActivity();
     }
   }
 
@@ -65,6 +68,10 @@ export function useChat(object: SceneObject): ChatController {
     lastSentAt.current = Date.now();
     const history = messages;
     setMessages((m) => [...m, { role: 'user', content: question }]);
+    // Feed the Curious AI: what was asked, and that a chat is in progress.
+    const store = useSceneStore.getState();
+    store.noteAskedQuestion(question);
+    store.noteChatActivity();
     void runRequest(question, history);
     return true;
   }

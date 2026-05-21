@@ -6,6 +6,7 @@ import { useVisualViewport } from '../../hooks/useMobileLayout';
 import { useChat } from '../../hooks/useChat';
 import { ChatThread } from './ChatThread';
 import { ChatInput } from './ChatInput';
+import { CuriosityNudge } from './CuriosityNudge';
 import { DissectButton } from './DissectButton';
 import { getMoonsByPlanet } from '../../data/moons';
 import { moonToSceneObject } from '../../lib/sceneObject';
@@ -231,6 +232,9 @@ export const PanelContent = memo(function PanelContent({
           New message ↓
         </button>
       )}
+
+      {/* Curious AI nudge — a gentle proactive question, just above the input. */}
+      <CuriosityNudge accent={accent} onAccept={chat.ask} />
 
       {/* Chat input — flex-shrink-0, never scrolls. */}
       <ChatInput

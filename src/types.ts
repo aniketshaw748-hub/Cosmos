@@ -134,3 +134,34 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+/** What user behaviour prompted the Curious AI to surface a question. */
+export type CuriosityTrigger =
+  | 'idle'
+  | 'dissection'
+  | 'timeline'
+  | 'zoom'
+  | 'post-chat'
+  | 'surprise';
+
+/** How a surfaced curiosity question ended up. */
+export type CuriosityOutcome = 'shown' | 'tapped' | 'dismissed' | 'ignored';
+
+/** A proactively generated curiosity question awaiting the user. */
+export interface CuriosityQuestion {
+  id: string;
+  text: string;
+  trigger: CuriosityTrigger;
+  /** short label of what the user was doing — e.g. "Saturn" or "4.1 bya" */
+  context: string;
+}
+
+/** A record of one curiosity question, for the demo session history. */
+export interface CuriosityLogEntry {
+  id: string;
+  question: string;
+  trigger: CuriosityTrigger;
+  context: string;
+  at: number;
+  outcome: CuriosityOutcome;
+}

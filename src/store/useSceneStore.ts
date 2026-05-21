@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import type { SceneObject } from '../types';
+import type {
+  SceneObject,
+  CuriosityQuestion,
+  CuriosityLogEntry,
+  CuriosityOutcome,
+} from '../types';
 import type { ViewportMode } from '../hooks/useMobileLayout';
 import { computeMode } from '../hooks/useMobileLayout';
 import { loadPanelWidth, loadPanelHeight } from '../lib/panelLayout';
@@ -44,6 +49,30 @@ interface SceneState {
   /** current responsive layout mode, mirrored from useViewportMode() */
   viewportMode: ViewportMode;
 
+  // --- Curious AI (proactive question system) ---
+  /** timestamp (ms) of the user's last click / keypress / zoom */
+  lastInteraction: number;
+  /** consecutive curiosity-question dismissals (drives the back-off) */
+  dismissCount: number;
+  /** until this timestamp the Curious AI stays quiet (3-dismissal back-off) */
+  curiosityBackoffUntil: number;
+  /** the curiosity question currently surfaced to the user, or null */
+  pendingCuriosityQuestion: CuriosityQuestion | null;
+  /** every curiosity question triggered this session — the demo history */
+  curiosityLog: CuriosityLogEntry[];
+  /** is the curiosity-log viewer open? */
+  curiosityLogOpen: boolean;
+  /** timestamp (ms) of the last chat message, either side */
+  lastChatAt: number;
+  /** questions the user has typed / tapped this session */
+  askedQuestions: string[];
+  /** names of recently-selected objects, most recent first */
+  recentObjects: string[];
+  /** camera distance to the focused object (written by CameraRig) */
+  cameraDistance: number;
+  /** bumped each time "Surprise me" reveals a random object */
+  surpriseNonce: number;
+
   select: (object: SceneObject) => void;
   deselect: () => void;
   setHovered: (target: HoverTarget | null) => void;
@@ -61,6 +90,14 @@ interface SceneState {
   setPanelWidth: (n: number) => void;
   setPanelHeightMobile: (n: number) => void;
   setViewportMode: (mode: ViewportMode) => void;
+  registerInteraction: () => void;
+  showCuriosity: (question: CuriosityQuestion) => void;
+  resolveCuriosity: (outcome: CuriosityOutcome) => void;
+  toggleCuriosityLog: () => void;
+  noteChatActivity: () => void;
+  noteAskedQuestion: (question: string) => void;
+  setCameraDistance: (distance: number) => void;
+  bumpSurprise: () => void;
 }
 
 export const useSceneStore = create<SceneState>((set) => ({
@@ -80,9 +117,26 @@ export const useSceneStore = create<SceneState>((set) => ({
   panelWidth: loadPanelWidth(),
   panelHeightMobile: loadPanelHeight(),
   viewportMode: computeMode(),
+  lastInteraction: Date.now(),
+  dismissCount: 0,
+  curiosityBackoffUntil: 0,
+  pendingCuriosityQuestion: null,
+  curiosityLog: [],
+  curiosityLogOpen: false,
+  lastChatAt: 0,
+  askedQuestions: [],
+  recentObjects: [],
+  cameraDistance: 0,
+  surpriseNonce: 0,
 
   select: (object) =>
-    set({ selected: object, dissectMode: false, galleryOpen: false, chatExpanded: false }),
+    set((s) => ({
+      selected: object,
+      dissectMode: false,
+      galleryOpen: false,
+      chatExpanded: false,
+      recentObjects: [object.name, ...s.recentObjects.filter((n) => n !== object.name)].slice(0, 6),
+    })),
   deselect: () =>
     set({ selected: null, dissectMode: false, galleryOpen: false, chatExpanded: false }),
   setHovered: (target) => set({ hovered: target }),
@@ -114,4 +168,51 @@ export const useSceneStore = create<SceneState>((set) => ({
   setPanelHeightMobile: (n) => set({ panelHeightMobile: n }),
   setViewportMode: (mode) =>
     set((s) => (s.viewportMode === mode ? {} : { viewportMode: mode })),
+
+  registerInteraction: () => set({ lastInteraction: Date.now() }),
+
+  showCuriosity: (question) =>
+    set((s) => ({
+      pendingCuriosityQuestion: question,
+      curiosityLog: [
+        ...s.curiosityLog,
+        {
+          id: question.id,
+          question: question.text,
+          trigger: question.trigger,
+          context: question.context,
+          at: Date.now(),
+          outcome: 'shown' as CuriosityOutcome,
+        },
+      ].slice(-60),
+    })),
+
+  resolveCuriosity: (outcome) =>
+    set((s) => {
+      const q = s.pendingCuriosityQuestion;
+      if (!q) return {};
+      const curiosityLog = s.curiosityLog.map((e) =>
+        e.id === q.id ? { ...e, outcome } : e,
+      );
+      let dismissCount = s.dismissCount;
+      let curiosityBackoffUntil = s.curiosityBackoffUntil;
+      if (outcome === 'tapped') {
+        dismissCount = 0;
+      } else if (outcome === 'dismissed') {
+        dismissCount += 1;
+        // Three dismissals in a row — back off for two minutes.
+        if (dismissCount >= 3) {
+          curiosityBackoffUntil = Date.now() + 120_000;
+          dismissCount = 0;
+        }
+      }
+      return { pendingCuriosityQuestion: null, curiosityLog, dismissCount, curiosityBackoffUntil };
+    }),
+
+  toggleCuriosityLog: () => set((s) => ({ curiosityLogOpen: !s.curiosityLogOpen })),
+  noteChatActivity: () => set({ lastChatAt: Date.now() }),
+  noteAskedQuestion: (question) =>
+    set((s) => ({ askedQuestions: [...s.askedQuestions, question].slice(-20) })),
+  setCameraDistance: (distance) => set({ cameraDistance: distance }),
+  bumpSurprise: () => set((s) => ({ surpriseNonce: s.surpriseNonce + 1 })),
 }));

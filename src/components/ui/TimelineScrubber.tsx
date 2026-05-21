@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSceneStore } from '../../store/useSceneStore';
 import { MILESTONES, milestoneAt, positionForIndex } from '../../data/timelineMilestones';
 import { askTutor } from '../../lib/ai';
+import { CuriosityNudge } from './CuriosityNudge';
 
 /** Seconds for the Play button to traverse the whole 4.6-billion-year timeline. */
 const PLAY_DURATION = 60;
@@ -20,6 +21,9 @@ export function TimelineScrubber() {
 
   const [playing, setPlaying] = useState(false);
   const [aiText, setAiText] = useState<Record<string, string>>({});
+  const [curiousQA, setCuriousQA] = useState<{ question: string; answer: string | null } | null>(
+    null,
+  );
 
   const { milestone, index } = milestoneAt(position);
 
@@ -59,6 +63,24 @@ export function TimelineScrubber() {
     return () => clearTimeout(t);
   }, [open, milestone.id, milestone.label, milestone.date, milestone.description, aiText]);
 
+  // Scrubbing to a new era clears any curiosity Q&A from the previous one.
+  useEffect(() => {
+    setCuriousQA(null);
+  }, [milestone.id]);
+
+  /** Answer a tapped curiosity question inline, inside the era card. */
+  const askCurious = (question: string) => {
+    setCuriousQA({ question, answer: null });
+    askTutor(milestone.label, { date: milestone.date, summary: milestone.description }, question, [])
+      .then((text) => setCuriousQA({ question, answer: text }))
+      .catch(() =>
+        setCuriousQA({
+          question,
+          answer: 'The tutor could not answer that just now — please try again.',
+        }),
+      );
+  };
+
   if (!open) return null;
 
   const explanation = aiText[milestone.id];
@@ -85,6 +107,23 @@ export function TimelineScrubber() {
             ×
           </button>
         </div>
+
+        {/* Curiosity Q&A — a tapped curiosity question, answered inline. */}
+        {curiousQA && (
+          <div className="mb-3 rounded-xl border border-sky-400/25 bg-sky-400/[0.07] px-4 py-2.5">
+            <p className="text-[12px] font-semibold text-sky-200">{curiousQA.question}</p>
+            {curiousQA.answer === null ? (
+              <p className="mt-1 text-[12px] italic text-white/45">Cosmos is thinking…</p>
+            ) : (
+              <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap text-[12.5px] leading-relaxed text-white/75">
+                {curiousQA.answer}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Curious AI nudge — a question about the era the user paused on. */}
+        <CuriosityNudge accent="#7cc4ff" onAccept={askCurious} />
 
         {/* Controls */}
         <div className="flex items-center gap-3">
