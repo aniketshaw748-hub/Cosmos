@@ -7,12 +7,16 @@ import { GoogleGenAI } from '@google/genai';
  * returns { text } — a vivid, in-character answer about the selected object.
  */
 
+/** Extend the function timeout beyond Vercel's 10s default. */
+export const maxDuration = 30;
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
-const MODEL = 'gemini-2.5-flash';
+// flash-lite has a more generous free-tier quota than flash.
+const MODEL = 'gemini-2.5-flash-lite';
 
 /** The Cosmos persona — see project spec §7. */
 function buildSystemInstruction(objectName: string, objectData: unknown): string {
@@ -39,7 +43,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not configured' });
+    console.error('[api/chat] GEMINI_API_KEY is not configured');
+    return res.status(500).json({ error: 'The AI tutor is not configured.' });
   }
 
   const body = (req.body ?? {}) as {
@@ -81,11 +86,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const text = response.text?.trim();
     if (!text) {
-      return res.status(502).json({ error: 'The tutor returned an empty response' });
+      console.error('[api/chat] the model returned an empty response');
+      return res.status(502).json({ error: 'The tutor had no response — please try again.' });
     }
 
     return res.status(200).json({ text });
   } catch (err) {
-    return res.status(502).json({ error: (err as Error).message });
+    const raw = err instanceof Error ? err.message : String(err);
+    console.error('[api/chat] generateContent failed:', raw);
+
+    const rateLimited =
+      /\b429\b|RESOURCE_EXHAUSTED|exceeded your current quota|rate.?limit/i.test(raw);
+    if (rateLimited) {
+      return res.status(429).json({
+        error:
+          'The AI tutor is over its rate limit right now. Please wait a minute and try again.',
+      });
+    }
+    return res.status(500).json({ error: `AI request failed: ${raw.slice(0, 300)}` });
   }
 }

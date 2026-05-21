@@ -18,6 +18,8 @@ interface SceneState {
   landingVisible: boolean;
   /** is the focused planet opened up to show its interior? (Feature 3) */
   dissectMode: boolean;
+  /** is the AI chat expanded to fill the panel? */
+  chatExpanded: boolean;
   /** high-quality textures toggle (Feature 5) */
   highQuality: boolean;
   /** is the NASA image gallery modal open? (Feature 6) */
@@ -39,6 +41,7 @@ interface SceneState {
   togglePaused: () => void;
   dismissLanding: () => void;
   toggleDissect: () => void;
+  toggleChatExpanded: () => void;
   toggleHighQuality: () => void;
   setGalleryOpen: (open: boolean) => void;
   setTimelineOpen: (open: boolean) => void;
@@ -54,6 +57,7 @@ export const useSceneStore = create<SceneState>((set) => ({
   paused: false,
   landingVisible: true,
   dissectMode: false,
+  chatExpanded: false,
   highQuality: false,
   galleryOpen: false,
   timelineOpen: false,
@@ -62,12 +66,15 @@ export const useSceneStore = create<SceneState>((set) => ({
   lastToastAt: 0,
   overviewNonce: 0,
 
-  select: (object) => set({ selected: object, dissectMode: false, galleryOpen: false }),
-  deselect: () => set({ selected: null, dissectMode: false, galleryOpen: false }),
+  select: (object) =>
+    set({ selected: object, dissectMode: false, galleryOpen: false, chatExpanded: false }),
+  deselect: () =>
+    set({ selected: null, dissectMode: false, galleryOpen: false, chatExpanded: false }),
   setHovered: (target) => set({ hovered: target }),
   togglePaused: () => set((s) => ({ paused: !s.paused })),
   dismissLanding: () => set({ landingVisible: false }),
   toggleDissect: () => set((s) => ({ dissectMode: !s.dissectMode })),
+  toggleChatExpanded: () => set((s) => ({ chatExpanded: !s.chatExpanded })),
   toggleHighQuality: () => set((s) => ({ highQuality: !s.highQuality })),
   setGalleryOpen: (open) => set({ galleryOpen: open }),
   setTimelineOpen: (open) => set({ timelineOpen: open }),

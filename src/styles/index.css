@@ -12,8 +12,14 @@ body,
   padding: 0;
   background: #05060a;
   overflow: hidden;
+  overscroll-behavior: none;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* The 3D canvas owns touch gestures (orbit / pinch-zoom). */
+canvas {
+  touch-action: none;
 }
 
 /* Thin scrollbars for the info panel / chat */

@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSceneStore } from '../../store/useSceneStore';
 import { getObject } from '../../lib/registry';
+import { useViewportMode } from '../../hooks/useMobileLayout';
 
 type OrbitLike = {
   target: THREE.Vector3;
@@ -14,11 +15,11 @@ type OrbitLike = {
 const ORIGIN = new THREE.Vector3(0, 0, 0);
 
 /**
- * Feature 1 — Click-to-Focus. On selection the camera eases in to the object.
- * The object itself is the OrbitControls anchor (so orbit / pan / zoom are
- * intuitive), and a projection view-offset frames it in the left of the
- * screen, leaving room for the info panel. Any manual interaction cancels the
- * auto-fly; deselecting eases back to a free view.
+ * Feature 1 — Click-to-Focus. The camera eases in to the selected object,
+ * which becomes the OrbitControls anchor (so orbit / pan / zoom are intuitive).
+ * A projection view-offset frames it clear of the info panel — toward the top
+ * on portrait phones, toward the left otherwise. Any manual interaction
+ * cancels the auto-fly; the Overview action zooms out to the whole system.
  */
 export function CameraRig() {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
@@ -27,6 +28,7 @@ export function CameraRig() {
   const selected = useSceneStore((s) => s.selected);
   const dissectMode = useSceneStore((s) => s.dissectMode);
   const overviewNonce = useSceneStore((s) => s.overviewNonce);
+  const mode = useViewportMode();
 
   const desiredCam = useRef(new THREE.Vector3());
   const desiredTarget = useRef(new THREE.Vector3());
@@ -55,10 +57,12 @@ export function CameraRig() {
       if (viewDir.lengthSq() < 1e-4) viewDir.set(0.55, 0.4, 1);
       viewDir.normalize();
 
-      // Zoom in closer when dissecting so the cross-section reads clearly.
-      const distance = dissectMode
-        ? Math.max(selected.radius * 4, 8)
-        : Math.max(selected.radius * 5, 7);
+      const distance =
+        mode === 'mobile-portrait'
+          ? Math.max(selected.radius * 5.5, 9)
+          : dissectMode
+            ? Math.max(selected.radius * 4, 8)
+            : Math.max(selected.radius * 5, 7);
 
       // The object itself is the orbit anchor.
       desiredTarget.current.copy(focus);
@@ -67,17 +71,34 @@ export function CameraRig() {
         .addScaledVector(viewDir, distance)
         .addScaledVector(camera.up, selected.radius * 1.1);
 
-      // A projection offset frames the object in the left of the screen
-      // without moving the orbit anchor off the object.
-      const shiftFrac = dissectMode ? 0.26 : 0.18;
-      camera.setViewOffset(
-        size.width,
-        size.height,
-        shiftFrac * size.width,
-        0,
-        size.width,
-        size.height,
-      );
+      // Frame the object clear of the info panel via a projection offset.
+      if (mode === 'mobile-portrait') {
+        camera.setViewOffset(
+          size.width,
+          size.height,
+          0,
+          0.29 * size.height,
+          size.width,
+          size.height,
+        );
+      } else {
+        const shiftFrac =
+          mode === 'mobile-landscape'
+            ? dissectMode
+              ? 0.34
+              : 0.275
+            : dissectMode
+              ? 0.26
+              : 0.18;
+        camera.setViewOffset(
+          size.width,
+          size.height,
+          shiftFrac * size.width,
+          0,
+          size.width,
+          size.height,
+        );
+      }
 
       flying.current = true;
       homing.current = false;
@@ -86,7 +107,7 @@ export function CameraRig() {
       flying.current = false;
       homing.current = true;
     }
-  }, [selected, dissectMode, controls, camera, size.width, size.height]);
+  }, [selected, dissectMode, mode, controls, camera, size.width, size.height]);
 
   // Zoom out to frame the whole solar system.
   useEffect(() => {

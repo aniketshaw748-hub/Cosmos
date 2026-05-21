@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage, SceneObject } from '../../types';
 import { askTutor } from '../../lib/ai';
-import { getFallbackFact } from '../../data/facts';
+import { useSceneStore } from '../../store/useSceneStore';
 import { SuggestedQuestions } from './SuggestedQuestions';
 
 /** AI tutor conversation for the selected object. Remounted per object via a
@@ -11,6 +11,9 @@ export function ChatBox({ object, accent }: { object: SceneObject; accent: strin
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const chatExpanded = useSceneStore((s) => s.chatExpanded);
+  const toggleChatExpanded = useSceneStore((s) => s.toggleChatExpanded);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -29,9 +32,18 @@ export function ChatBox({ object, accent }: { object: SceneObject; accent: strin
     try {
       const answer = await askTutor(object.name, object.aiContext, question, history);
       setMessages((m) => [...m, { role: 'assistant', content: answer }]);
-    } catch {
-      // Never leave the user hanging — fall back to a static fact.
-      setMessages((m) => [...m, { role: 'assistant', content: getFallbackFact(object) }]);
+    } catch (err) {
+      // Surface the real failure instead of a static fact that looks like an answer.
+      const detail = err instanceof Error ? err.message : '';
+      setMessages((m) => [
+        ...m,
+        {
+          role: 'assistant',
+          content: /rate.?limit/i.test(detail)
+            ? detail
+            : "Sorry, I couldn't reach my brain right now — try again.",
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -41,13 +53,25 @@ export function ChatBox({ object, accent }: { object: SceneObject; accent: strin
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+      {/* Strip with the expand / collapse toggle. */}
+      <div className="flex shrink-0 items-center justify-between px-4 pt-2.5">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">
+          Cosmos AI
+        </span>
+        <button
+          onClick={toggleChatExpanded}
+          aria-label={chatExpanded ? 'Collapse chat' : 'Expand chat'}
+          title={chatExpanded ? 'Collapse chat' : 'Expand chat'}
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/55 transition hover:border-white/30 hover:bg-white/10 hover:text-white"
+        >
+          <ExpandIcon expanded={chatExpanded} />
+        </button>
+      </div>
+
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-6 pb-4 pt-2">
         {empty ? (
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
-              Ask Cosmos
-            </p>
-            <p className="mt-1.5 mb-3 text-sm leading-relaxed text-white/55">
+            <p className="mb-3 text-sm leading-relaxed text-white/55">
               Your AI tutor for everything about{' '}
               <span className="text-white/90">{object.name}</span>.
             </p>
@@ -72,7 +96,7 @@ export function ChatBox({ object, accent }: { object: SceneObject; accent: strin
           e.preventDefault();
           send(input);
         }}
-        className="shrink-0 border-t border-white/[0.06] p-3"
+        className="shrink-0 border-t border-white/[0.06] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
         <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 transition focus-within:border-white/25">
           <input
@@ -93,6 +117,28 @@ export function ChatBox({ object, accent }: { object: SceneObject; accent: strin
         </div>
       </form>
     </div>
+  );
+}
+
+/** Maximize / minimize corner-bracket icon. */
+function ExpandIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {expanded ? (
+        <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+      ) : (
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+      )}
+    </svg>
   );
 }
 
