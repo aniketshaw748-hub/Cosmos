@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSceneStore } from '../../store/useSceneStore';
 import { getObject } from '../../lib/registry';
-import { useViewportMode } from '../../hooks/useMobileLayout';
+import { clamp } from '../../lib/panelLayout';
 
 type OrbitLike = {
   target: THREE.Vector3;
@@ -28,7 +28,9 @@ export function CameraRig() {
   const selected = useSceneStore((s) => s.selected);
   const dissectMode = useSceneStore((s) => s.dissectMode);
   const overviewNonce = useSceneStore((s) => s.overviewNonce);
-  const mode = useViewportMode();
+  const mode = useSceneStore((s) => s.viewportMode);
+  const panelWidth = useSceneStore((s) => s.panelWidth);
+  const panelHeightMobile = useSceneStore((s) => s.panelHeightMobile);
 
   const desiredCam = useRef(new THREE.Vector3());
   const desiredTarget = useRef(new THREE.Vector3());
@@ -71,43 +73,32 @@ export function CameraRig() {
         .addScaledVector(viewDir, distance)
         .addScaledVector(camera.up, selected.radius * 1.1);
 
-      // Frame the object clear of the info panel via a projection offset.
-      if (mode === 'mobile-portrait') {
-        camera.setViewOffset(
-          size.width,
-          size.height,
-          0,
-          0.29 * size.height,
-          size.width,
-          size.height,
-        );
-      } else {
-        const shiftFrac =
-          mode === 'mobile-landscape'
-            ? dissectMode
-              ? 0.34
-              : 0.275
-            : dissectMode
-              ? 0.26
-              : 0.18;
-        camera.setViewOffset(
-          size.width,
-          size.height,
-          shiftFrac * size.width,
-          0,
-          size.width,
-          size.height,
-        );
-      }
-
       flying.current = true;
       homing.current = false;
     } else {
-      camera.clearViewOffset();
       flying.current = false;
       homing.current = true;
     }
-  }, [selected, dissectMode, mode, controls, camera, size.width, size.height]);
+  }, [selected, dissectMode, mode, controls, camera]);
+
+  // Keep the projection offset synced to the panel's size so the focused
+  // object stays centred in the visible area. This re-runs on every resize
+  // but never moves the camera, so the user's current zoom and angle survive.
+  // The panel covers the right edge (desktop / landscape) or the bottom
+  // (portrait), so the projection shifts by half the panel's measured size.
+  useEffect(() => {
+    if (!selected) {
+      camera.clearViewOffset();
+      return;
+    }
+    if (mode === 'mobile-portrait') {
+      const panelH = clamp(panelHeightMobile, size.height * 0.3, size.height * 0.85);
+      camera.setViewOffset(size.width, size.height, 0, panelH / 2, size.width, size.height);
+    } else {
+      const panelW = clamp(panelWidth, 320, size.width * 0.6);
+      camera.setViewOffset(size.width, size.height, panelW / 2, 0, size.width, size.height);
+    }
+  }, [selected, mode, panelWidth, panelHeightMobile, camera, size.width, size.height]);
 
   // Zoom out to frame the whole solar system.
   useEffect(() => {

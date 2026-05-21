@@ -1,12 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useSceneStore } from '../../store/useSceneStore';
 import type { SceneObject } from '../../types';
-import { ChatBox } from './ChatBox';
-import { DissectButton } from './DissectButton';
-import { getMoonsByPlanet } from '../../data/moons';
-import { moonToSceneObject } from '../../lib/sceneObject';
 import { useViewportMode, useVisualViewport } from '../../hooks/useMobileLayout';
+import { usePanelResize } from '../../hooks/usePanelResize';
+import type { PanelResizeHandlers } from '../../hooks/usePanelResize';
+import { PanelContent } from './PanelContent';
+import {
+  PANEL_MIN_WIDTH,
+  clamp,
+  panelMaxWidth,
+  panelMinHeight,
+  panelMaxHeight,
+  DEFAULT_WIDTH_DESKTOP,
+  defaultWidthLandscape,
+  defaultHeightMobile,
+  snapHeight,
+  savePanelWidth,
+  savePanelHeight,
+} from '../../lib/panelLayout';
 
 /** Accent colour per object kind. */
 const ACCENT: Record<SceneObject['kind'], string> = {
@@ -17,17 +29,22 @@ const ACCENT: Record<SceneObject['kind'], string> = {
 };
 
 /**
- * Slide-in panel for the selected object: stats, actions and the AI tutor.
- * Three responsive layouts — docked right (desktop), docked bottom (portrait
- * phones), docked right and compact (landscape phones).
+ * Slide-in panel for the selected object. Three responsive layouts — docked
+ * right (desktop / landscape) or docked bottom (portrait) — each resizable by
+ * dragging the panel's leading edge. The size persists per orientation.
  */
 export function InfoPanel() {
   const selected = useSceneStore((s) => s.selected);
-  const deselect = useSceneStore((s) => s.deselect);
-  const select = useSceneStore((s) => s.select);
-  const setGalleryOpen = useSceneStore((s) => s.setGalleryOpen);
   const chatExpanded = useSceneStore((s) => s.chatExpanded);
+  const panelWidth = useSceneStore((s) => s.panelWidth);
+  const panelHeightMobile = useSceneStore((s) => s.panelHeightMobile);
+  const setPanelWidth = useSceneStore((s) => s.setPanelWidth);
+  const setPanelHeightMobile = useSceneStore((s) => s.setPanelHeightMobile);
+  const setViewportMode = useSceneStore((s) => s.setViewportMode);
+
   const [shown, setShown] = useState<SceneObject | null>(selected);
+  // Live size while a drag is in progress (null when settled).
+  const [liveSize, setLiveSize] = useState<number | null>(null);
 
   const mode = useViewportMode();
   const { height: vvHeight, keyboard } = useVisualViewport();
@@ -36,171 +53,137 @@ export function InfoPanel() {
     if (selected) setShown(selected);
   }, [selected]);
 
+  // Mirror the layout mode into the store for CameraRig and friends.
+  useEffect(() => {
+    setViewportMode(mode);
+  }, [mode, setViewportMode]);
+
   const open = selected !== null;
   const accent = shown ? ACCENT[shown.kind] : ACCENT.planet;
-  const moons = shown?.kind === 'planet' ? getMoonsByPlanet(shown.id) : [];
-
   const isPortrait = mode === 'mobile-portrait';
   const isLandscape = mode === 'mobile-landscape';
-  const compact = isLandscape;
-  // Hide the stat / action sections when the chat is expanded, or when the
-  // keyboard is open on a portrait phone (so the chat + input stay visible).
-  const hideSections = chatExpanded || (isPortrait && keyboard > 0);
+  const horizontal = !isPortrait;
 
-  let panelStyle: CSSProperties | undefined;
+  const clampSize = useCallback(
+    (raw: number) =>
+      horizontal
+        ? clamp(raw, PANEL_MIN_WIDTH, panelMaxWidth())
+        : clamp(raw, panelMinHeight(), panelMaxHeight()),
+    [horizontal],
+  );
+
+  const resize = usePanelResize({
+    axis: horizontal ? 'x' : 'y',
+    value: horizontal ? panelWidth : panelHeightMobile,
+    clampValue: clampSize,
+    snap: horizontal ? undefined : snapHeight,
+    resetValue: () =>
+      mode === 'desktop'
+        ? DEFAULT_WIDTH_DESKTOP
+        : mode === 'mobile-landscape'
+          ? defaultWidthLandscape()
+          : defaultHeightMobile(),
+    onResize: (s) => setLiveSize(s),
+    onCommit: (s) => {
+      setLiveSize(null);
+      if (horizontal) {
+        setPanelWidth(s);
+        savePanelWidth(s);
+      } else {
+        setPanelHeightMobile(s);
+        savePanelHeight(s);
+      }
+    },
+  });
+
+  // Panel size — the live value mid-drag, else the committed store value.
+  let panelStyle: CSSProperties;
   if (isPortrait) {
+    const h = clampSize(liveSize ?? panelHeightMobile);
     panelStyle = {
       bottom: keyboard,
       height:
         keyboard > 0
           ? Math.max(vvHeight - 12, 240)
-          : Math.round(vvHeight * (chatExpanded ? 0.86 : 0.58)),
+          : chatExpanded
+            ? Math.round(vvHeight * 0.85)
+            : h,
     };
-  } else if (isLandscape && keyboard > 0) {
-    panelStyle = { height: vvHeight };
+  } else {
+    panelStyle = { width: clampSize(liveSize ?? panelWidth) };
+    if (isLandscape && keyboard > 0) panelStyle.height = vvHeight;
   }
 
-  const base =
-    'pointer-events-auto absolute z-20 flex flex-col border-white/10 shadow-2xl transition-all ease-out';
+  const base = 'pointer-events-auto absolute z-20 flex flex-col border-white/10 shadow-2xl';
+  // Disable transitions during a drag so resizing tracks the pointer in real time.
+  const motion = resize.dragging ? '' : 'transition-all ease-out';
   let layout: string;
   if (isPortrait) {
     layout = `inset-x-0 bottom-0 w-full border-t bg-[#0b0e17] duration-[360ms] ${
       open ? 'translate-y-0' : 'translate-y-full'
     }`;
   } else if (isLandscape) {
-    layout = `right-0 top-0 h-full w-[56vw] min-w-[320px] border-l bg-[#0b0e17] duration-300 ${
+    layout = `right-0 top-0 h-full border-l bg-[#0b0e17] duration-300 ${
       open ? 'translate-x-0' : 'translate-x-full'
     }`;
   } else {
-    layout = `right-0 top-0 h-full w-[clamp(380px,38vw,560px)] max-w-[94vw] border-l bg-[#0a0d16]/90 backdrop-blur-xl duration-[420ms] ${
+    layout = `right-0 top-0 h-full border-l bg-[#0a0d16]/90 backdrop-blur-xl duration-[420ms] ${
       open ? 'translate-x-0' : 'translate-x-full'
     }`;
   }
 
   return (
-    <aside aria-hidden={!open} className={`${base} ${layout}`} style={panelStyle}>
-      {shown && (
-        <>
-          <header
-            className={`relative shrink-0 ${compact ? 'px-4 pb-2 pt-3' : 'px-6 pb-4 pt-6'}`}
-          >
-            <div
-              className="absolute inset-x-0 top-0 h-[3px]"
-              style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
-            />
-            <button
-              onClick={deselect}
-              aria-label="Close panel"
-              className={`absolute flex items-center justify-center rounded-full border border-white/10 leading-none text-white/60 transition hover:border-white/30 hover:bg-white/10 hover:text-white ${
-                compact ? 'right-3 top-2.5 h-7 w-7 text-base' : 'right-5 top-5 h-8 w-8 text-lg'
-              }`}
-            >
-              ×
-            </button>
-            <span
-              className="text-[11px] font-semibold uppercase tracking-[0.2em]"
-              style={{ color: accent }}
-            >
-              {shown.kind}
-            </span>
-            <h2
-              className={`mt-1 font-semibold tracking-tight text-white ${
-                compact ? 'text-xl' : 'text-2xl sm:text-3xl'
-              }`}
-            >
-              {shown.name}
-            </h2>
-            {!compact && (
-              <p className="mt-2 max-w-[320px] text-sm leading-relaxed text-white/55">
-                {shown.blurb}
-              </p>
-            )}
-          </header>
-
-          {!hideSections && (
-            <>
-              {/* Actions */}
-              <div
-                className={`flex shrink-0 flex-wrap gap-2 ${compact ? 'px-4 pb-2' : 'px-6 pb-3'}`}
-              >
-                <DissectButton />
-                <button
-                  onClick={() => setGalleryOpen(true)}
-                  className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:border-white/30 hover:text-white"
-                >
-                  View NASA Photos
-                </button>
-              </div>
-
-              {/* Quick facts */}
-              <div
-                className={`shrink-0 border-b border-white/[0.06] ${
-                  compact ? 'px-4 pb-2' : 'px-6 pb-4'
-                }`}
-              >
-                {!compact && (
-                  <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
-                    Quick facts
-                  </h3>
-                )}
-                {compact ? (
-                  <div className="flex gap-4 overflow-x-auto pb-1">
-                    {shown.stats.map((stat) => (
-                      <div key={stat.label} className="shrink-0">
-                        <dt className="text-[9px] uppercase tracking-wider text-white/35">
-                          {stat.label}
-                        </dt>
-                        <dd className="text-[12px] font-medium text-white/90">{stat.value}</dd>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <dl className="grid grid-cols-2 gap-x-5">
-                    {shown.stats.map((stat) => (
-                      <div
-                        key={stat.label}
-                        className="flex flex-col border-b border-white/[0.05] py-1.5"
-                      >
-                        <dt className="text-[10px] uppercase tracking-wider text-white/35">
-                          {stat.label}
-                        </dt>
-                        <dd className="text-[13px] font-medium text-white/90">{stat.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-              </div>
-
-              {/* Moons */}
-              {moons.length > 0 && (
-                <div
-                  className={`shrink-0 border-b border-white/[0.06] ${
-                    compact ? 'px-4 py-2' : 'px-6 py-3'
-                  }`}
-                >
-                  <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
-                    Moons · {moons.length}
-                  </h3>
-                  <div className="flex flex-wrap gap-1.5">
-                    {moons.map((moon) => (
-                      <button
-                        key={moon.id}
-                        onClick={() => select(moonToSceneObject(moon, [0, 0, 0]))}
-                        className="rounded-md border border-white/12 bg-white/[0.04] px-2 py-1 text-xs text-white/75 transition hover:border-white/30 hover:text-white"
-                      >
-                        {moon.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* AI tutor */}
-          <ChatBox key={shown.id} object={shown} accent={accent} />
-        </>
-      )}
+    <aside aria-hidden={!open} className={`${base} ${motion} ${layout}`} style={panelStyle}>
+      {open && <ResizeHandle portrait={isPortrait} dragging={resize.dragging} resize={resize} />}
+      {shown && <PanelContent key={shown.id} object={shown} accent={accent} mode={mode} />}
     </aside>
+  );
+}
+
+/** The drag-to-resize grip on the panel's leading edge. */
+function ResizeHandle({
+  portrait,
+  dragging,
+  resize,
+}: {
+  portrait: boolean;
+  dragging: boolean;
+  resize: PanelResizeHandlers;
+}) {
+  if (portrait) {
+    return (
+      <div
+        onPointerDown={resize.onPointerDown}
+        onDoubleClick={resize.onDoubleClick}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Drag to resize panel — double-tap to reset"
+        title="Drag to resize · double-tap to reset"
+        className="absolute inset-x-0 top-0 z-30 flex h-6 -translate-y-1/2 touch-none cursor-row-resize items-center justify-center"
+      >
+        <div
+          className={`h-1 w-10 rounded-full transition-colors ${
+            dragging ? 'bg-white/60' : 'bg-white/25'
+          }`}
+        />
+      </div>
+    );
+  }
+  return (
+    <div
+      onPointerDown={resize.onPointerDown}
+      onDoubleClick={resize.onDoubleClick}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Drag to resize panel — double-click to reset"
+      title="Drag to resize · double-click to reset"
+      className="group absolute inset-y-0 left-0 z-30 flex w-2 -translate-x-1/2 touch-none cursor-col-resize justify-center"
+    >
+      <div
+        className={`h-full w-px transition-colors ${
+          dragging ? 'bg-white/55' : 'bg-transparent group-hover:bg-white/35'
+        }`}
+      />
+    </div>
   );
 }

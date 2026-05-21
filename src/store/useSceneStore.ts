@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import type { SceneObject } from '../types';
+import type { ViewportMode } from '../hooks/useMobileLayout';
+import { computeMode } from '../hooks/useMobileLayout';
+import { loadPanelWidth, loadPanelHeight } from '../lib/panelLayout';
 
 /** Lightweight identity of the object under the cursor. */
 export interface HoverTarget {
@@ -34,6 +37,12 @@ interface SceneState {
   lastToastAt: number;
   /** bumped to request a zoom-out to the whole-system overview */
   overviewNonce: number;
+  /** InfoPanel width for desktop / landscape, px (user-resizable) */
+  panelWidth: number;
+  /** InfoPanel height for portrait phones, px (user-resizable) */
+  panelHeightMobile: number;
+  /** current responsive layout mode, mirrored from useViewportMode() */
+  viewportMode: ViewportMode;
 
   select: (object: SceneObject) => void;
   deselect: () => void;
@@ -49,6 +58,9 @@ interface SceneState {
   triggerToast: () => void;
   dismissToast: () => void;
   viewOverview: () => void;
+  setPanelWidth: (n: number) => void;
+  setPanelHeightMobile: (n: number) => void;
+  setViewportMode: (mode: ViewportMode) => void;
 }
 
 export const useSceneStore = create<SceneState>((set) => ({
@@ -65,6 +77,9 @@ export const useSceneStore = create<SceneState>((set) => ({
   toastVisible: false,
   lastToastAt: 0,
   overviewNonce: 0,
+  panelWidth: loadPanelWidth(),
+  panelHeightMobile: loadPanelHeight(),
+  viewportMode: computeMode(),
 
   select: (object) =>
     set({ selected: object, dissectMode: false, galleryOpen: false, chatExpanded: false }),
@@ -95,4 +110,8 @@ export const useSceneStore = create<SceneState>((set) => ({
       timelineOpen: false,
       overviewNonce: s.overviewNonce + 1,
     })),
+  setPanelWidth: (n) => set({ panelWidth: n }),
+  setPanelHeightMobile: (n) => set({ panelHeightMobile: n }),
+  setViewportMode: (mode) =>
+    set((s) => (s.viewportMode === mode ? {} : { viewportMode: mode })),
 }));

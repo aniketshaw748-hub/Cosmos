@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 /** Three-way responsive mode. Tablets (768–1024px portrait) use desktop. */
 export type ViewportMode = 'desktop' | 'mobile-portrait' | 'mobile-landscape';
 
-function computeMode(): ViewportMode {
+export function computeMode(): ViewportMode {
   if (typeof window === 'undefined') return 'desktop';
   const portrait = window.matchMedia('(orientation: portrait)').matches;
   const w = window.innerWidth;
