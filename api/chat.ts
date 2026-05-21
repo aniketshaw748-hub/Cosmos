@@ -18,6 +18,14 @@ interface ChatMessage {
 // flash-lite has a more generous free-tier quota than flash.
 const MODEL = 'gemini-2.5-flash-lite';
 
+/** Keep the request small — only the last few turns are sent to the model. */
+const MAX_HISTORY = 6;
+
+/** Back-off delays (ms) between retries when the model is rate-limited. */
+const BACKOFF_MS = [2000, 4000, 8000];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /** The Cosmos persona — see project spec §7. */
 function buildSystemInstruction(objectName: string, objectData: unknown): string {
   return `You are Cosmos, an AI space tutor inside a 3D space exploration app. The user is currently looking at ${objectName} and has the following real data on screen: ${JSON.stringify(
@@ -34,6 +42,10 @@ Rules:
 - End with a "Want to know more?" hook — a follow-up question they could ask.
 - Never break character or mention you are an AI model unless directly asked.
 - No emojis. No bullet points. Prose only.`;
+}
+
+function isRateLimited(message: string): boolean {
+  return /\b429\b|RESOURCE_EXHAUSTED|exceeded your current quota|rate.?limit/i.test(message);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -56,53 +68,80 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const objectName = body.objectName?.trim() || 'this object';
   const question = body.question?.trim();
-  const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
+  const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY) : [];
 
   if (!question) {
     return res.status(400).json({ error: 'A question is required' });
   }
 
-  try {
-    const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey });
+  const systemInstruction = buildSystemInstruction(objectName, body.objectData ?? {});
 
-    const contents = [
-      ...history.map((m) => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      })),
-      { role: 'user', parts: [{ text: question }] },
-    ];
+  const contents = [
+    ...history.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    })),
+    { role: 'user', parts: [{ text: question }] },
+  ];
 
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents,
-      config: {
-        systemInstruction: buildSystemInstruction(objectName, body.objectData ?? {}),
-        temperature: 0.9,
-        maxOutputTokens: 1024,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
+  // Observability: how big is the prompt we're shipping to Gemini?
+  const payloadChars =
+    JSON.stringify(contents).length + systemInstruction.length;
+  console.log(
+    `[api/chat] object=${objectName} historyTurns=${history.length} payload≈${payloadChars} chars`,
+  );
 
-    const text = response.text?.trim();
-    if (!text) {
-      console.error('[api/chat] the model returned an empty response');
-      return res.status(502).json({ error: 'The tutor had no response — please try again.' });
-    }
-
-    return res.status(200).json({ text });
-  } catch (err) {
-    const raw = err instanceof Error ? err.message : String(err);
-    console.error('[api/chat] generateContent failed:', raw);
-
-    const rateLimited =
-      /\b429\b|RESOURCE_EXHAUSTED|exceeded your current quota|rate.?limit/i.test(raw);
-    if (rateLimited) {
-      return res.status(429).json({
-        error:
-          'The AI tutor is over its rate limit right now. Please wait a minute and try again.',
+  // Try the request, retrying with exponential back-off if Gemini is rate-limited.
+  let lastError = '';
+  for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents,
+        config: {
+          systemInstruction,
+          temperature: 0.9,
+          maxOutputTokens: 500,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       });
+
+      const text = response.text?.trim();
+      if (!text) {
+        console.error('[api/chat] the model returned an empty response');
+        return res.status(502).json({
+          error: 'empty-response',
+          message: 'That answer ran long — try asking something more specific.',
+        });
+      }
+
+      return res.status(200).json({ text });
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+
+      if (isRateLimited(lastError) && attempt < BACKOFF_MS.length) {
+        const wait = BACKOFF_MS[attempt];
+        console.warn(
+          `[api/chat] rate-limited (attempt ${attempt + 1}) — retrying in ${wait}ms`,
+        );
+        await sleep(wait);
+        continue;
+      }
+      break;
     }
-    return res.status(500).json({ error: `AI request failed: ${raw.slice(0, 300)}` });
   }
+
+  console.error('[api/chat] generateContent failed:', lastError);
+
+  if (isRateLimited(lastError)) {
+    return res.status(429).json({
+      error: 'rate-limited',
+      message: 'Too many questions too quickly — wait a moment, then try again.',
+    });
+  }
+  return res.status(500).json({
+    error: 'unknown',
+    message: 'The tutor ran into a problem — please try again.',
+  });
 }

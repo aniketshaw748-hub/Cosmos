@@ -4,13 +4,21 @@ import { askTutor } from '../../lib/ai';
 import { useSceneStore } from '../../store/useSceneStore';
 import { SuggestedQuestions } from './SuggestedQuestions';
 
+/** A chat turn, plus client-only flags for a failed request. */
+type ChatMsg = ChatMessage & { error?: boolean; failedQuestion?: string };
+
+/** Minimum gap between sends — debounces eager clicking into the rate limit. */
+const SEND_COOLDOWN_MS = 2000;
+
 /** AI tutor conversation for the selected object. Remounted per object via a
  *  `key`, so each world gets a fresh conversation. */
 export function ChatBox({ object, accent }: { object: SceneObject; accent: string }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tooFast, setTooFast] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastSentAt = useRef(0);
 
   const chatExpanded = useSceneStore((s) => s.chatExpanded);
   const toggleChatExpanded = useSceneStore((s) => s.toggleChatExpanded);
@@ -20,33 +28,59 @@ export function ChatBox({ object, accent }: { object: SceneObject; accent: strin
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages, loading]);
 
-  async function send(raw: string) {
-    const question = raw.trim();
-    if (!question || loading) return;
+  /** True if we're still inside the post-send cooldown window. */
+  function debounced(): boolean {
+    if (Date.now() - lastSentAt.current < SEND_COOLDOWN_MS) {
+      setTooFast(true);
+      window.setTimeout(() => setTooFast(false), 1600);
+      return true;
+    }
+    return false;
+  }
 
-    const history = messages;
-    setMessages((m) => [...m, { role: 'user', content: question }]);
-    setInput('');
+  /** Fire one request and append the answer (or a friendly error bubble). */
+  async function runRequest(question: string, history: ChatMsg[]) {
     setLoading(true);
-
     try {
-      const answer = await askTutor(object.name, object.aiContext, question, history);
+      // Only real exchanges are useful context — drop earlier error bubbles.
+      const clean = history.filter((m) => !m.error);
+      const answer = await askTutor(object.name, object.aiContext, question, clean);
       setMessages((m) => [...m, { role: 'assistant', content: answer }]);
     } catch (err) {
-      // Surface the real failure instead of a static fact that looks like an answer.
-      const detail = err instanceof Error ? err.message : '';
+      const detail =
+        err instanceof Error ? err.message : 'The tutor ran into a problem — please try again.';
       setMessages((m) => [
         ...m,
-        {
-          role: 'assistant',
-          content: /rate.?limit/i.test(detail)
-            ? detail
-            : "Sorry, I couldn't reach my brain right now — try again.",
-        },
+        { role: 'assistant', content: detail, error: true, failedQuestion: question },
       ]);
     } finally {
       setLoading(false);
     }
+  }
+
+  /** Send a fresh question typed or picked by the user. */
+  function ask(raw: string) {
+    const question = raw.trim();
+    if (!question || loading || debounced()) return;
+
+    lastSentAt.current = Date.now();
+    const history = messages;
+    setMessages((m) => [...m, { role: 'user', content: question }]);
+    setInput('');
+    void runRequest(question, history);
+  }
+
+  /** Re-send a question whose previous attempt failed. */
+  function retry(question: string) {
+    if (loading || debounced()) return;
+
+    lastSentAt.current = Date.now();
+    // History up to (but not including) the failed user turn.
+    const errorIdx = messages.findIndex((m) => m.error);
+    const history = errorIdx > 0 ? messages.slice(0, errorIdx - 1) : [];
+    // Drop the error bubble; the user question bubble stays.
+    setMessages((m) => m.filter((msg) => !msg.error));
+    void runRequest(question, history);
   }
 
   const empty = messages.length === 0 && !loading;
@@ -77,14 +111,14 @@ export function ChatBox({ object, accent }: { object: SceneObject; accent: strin
             </p>
             <SuggestedQuestions
               questions={object.suggestedQuestions}
-              onPick={send}
+              onPick={ask}
               disabled={loading}
             />
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             {messages.map((message, i) => (
-              <MessageBubble key={i} message={message} accent={accent} />
+              <MessageBubble key={i} message={message} accent={accent} onRetry={retry} />
             ))}
             {loading && <TypingIndicator />}
           </div>
@@ -94,10 +128,15 @@ export function ChatBox({ object, accent }: { object: SceneObject; accent: strin
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          send(input);
+          ask(input);
         }}
         className="shrink-0 border-t border-white/[0.06] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
+        {tooFast && (
+          <p className="mb-1.5 px-1 text-[11px] text-amber-300/80">
+            One moment — you're sending questions a little too fast.
+          </p>
+        )}
         <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 transition focus-within:border-white/25">
           <input
             value={input}
@@ -142,7 +181,15 @@ function ExpandIcon({ expanded }: { expanded: boolean }) {
   );
 }
 
-function MessageBubble({ message, accent }: { message: ChatMessage; accent: string }) {
+function MessageBubble({
+  message,
+  accent,
+  onRetry,
+}: {
+  message: ChatMsg;
+  accent: string;
+  onRetry: (question: string) => void;
+}) {
   if (message.role === 'user') {
     return (
       <div
@@ -153,6 +200,32 @@ function MessageBubble({ message, accent }: { message: ChatMessage; accent: stri
       </div>
     );
   }
+
+  if (message.error) {
+    return (
+      <div className="max-w-full self-start">
+        <div className="mb-1 flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-300/70">
+            Couldn't answer
+          </span>
+        </div>
+        <div className="rounded-2xl rounded-tl-sm border border-red-400/25 bg-red-500/[0.07] px-3.5 py-2.5 text-[13px] leading-relaxed text-red-100/85">
+          {message.content}
+          {message.failedQuestion && (
+            <button
+              onClick={() => onRetry(message.failedQuestion!)}
+              className="mt-2 flex items-center gap-1.5 rounded-lg border border-red-400/30 px-2.5 py-1 text-[11px] font-semibold text-red-100 transition hover:border-red-400/60 hover:bg-red-400/15"
+            >
+              <RetryIcon />
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-full self-start">
       <div className="mb-1 flex items-center gap-1.5">
@@ -165,6 +238,24 @@ function MessageBubble({ message, accent }: { message: ChatMessage; accent: stri
         {message.content}
       </div>
     </div>
+  );
+}
+
+/** Circular-arrow retry glyph. */
+function RetryIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+    </svg>
   );
 }
 
